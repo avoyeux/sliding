@@ -1,0 +1,30 @@
+# All blacklisted
+*
+
+# DIRs whitelisted
+!libs/
+!libs/**
+!programs/
+!programs/**/
+
+# SUBMODULEs exception
+!libs/**/.git
+
+# TYPEs whitelist
+!**/*.pro
+!**/*.py
+!**/*.md
+!**/*.yml
+!**/*.txt
+!**/*.sh
+
+# BLACKLIST specific dirs
+**/.*/
+**/__pycache__/
+
+# FILEs whitelisted
+!README.md
+!requirements.txt
+!.gitignore
+!.gitmodules
+!LICENSE

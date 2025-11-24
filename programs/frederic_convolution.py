@@ -1,5 +1,6 @@
 """
-Contains the code that is being test to see if it can be used for SPICE.
+Contains the code that needs testing to see if it can be used for SPICE (for moving sample
+standard deviation calculations).
 """
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ import numpy as np
 # IMPORTs sub
 from scipy.ndimage import convolve
 
-# IMPORTs local
+# IMPORTs personal
 from common import Decorators
 
 # TYPE ANNOTATIONs
@@ -20,8 +21,6 @@ from typing import Any
 
 # API public
 __all__ = ["ConvolutionSTD"]
-
-# todo add the actual sigma clipping method.
 
 
 
@@ -33,10 +32,8 @@ class ConvolutionSTD:
     @Decorators.running_time
     def __init__(
             self,
-            image: np.ndarray[tuple[int, ...], np.dtype[Any]],
+            data: np.ndarray[tuple[int, ...], np.dtype[Any]],
             kernel_size: int,
-            verbose: int = 0, 
-            flush: bool = False,
         ) -> None:
         """
         Computes the moving sample standard deviations using convolutions. The size of each sample
@@ -44,17 +41,15 @@ class ConvolutionSTD:
         To retrieve the computed standard deviations, use the 'sdev' property.
 
         Args:
-            image (np.ndarray[tuple[int, ...], np.dtype[Any]]): _description_
-            kernel_size (int): _description_
-            verbose (int, optional): _description_. Defaults to 0.
-            flush (bool, optional): _description_. Defaults to False.
+            data (np.ndarray[tuple[int, ...], np.dtype[Any]]): the data for which the moving sample
+                standard deviations are computed.
+            kernel_size (int): the size of the kernel (square) used for computing the moving sample
+                standard deviations.
+            verbose (int, optional): verbosity level for the prints. Defaults to 0.
+            flush (bool, optional): whether to flush the prints. Defaults to False.
         """
 
-        # CONFIG attributes
-        self._verbose = verbose
-        self._flush = flush
-
-        self._image = image
+        self._data = data
         self._kernel = np.ones((kernel_size,) * 2, dtype=np.float64) / (kernel_size ** 2)
 
         # RUN
@@ -82,8 +77,8 @@ class ConvolutionSTD:
         """
 
         # STD
-        mean2 = self._convolution(self._image) ** 2
-        variance = self._convolution(self._image ** 2)
+        mean2 = self._convolution(self._data) ** 2
+        variance = self._convolution(self._data ** 2)
         variance -= mean2
         variance[variance <= 0] = 1e-20
         return np.sqrt(variance)
@@ -125,12 +120,15 @@ class ConvolutionSTD:
                     0,  # Optional offset
                     cv2.BORDER_REFLECT,
                 )
+            kernel_1d = (
+                np.ones((self._kernel.shape[0], 1), dtype=np.float64) / self._kernel.shape[0]
+            )
             for i in range(arr.shape[2]):
                 dum = np.empty_like(output[:, :, i])
                 cv2.filter2D(
-                    np.copy(output[:, :, i]),
+                    np.ascontiguousarray(output[:, :, i]),  # * contiguous for C implementation
                     -1,  # Same pixel depth as input
-                    np.expand_dims(self._kernel, axis=1),
+                    kernel_1d,
                     dum,
                     (-1, -1),  # Anchor is kernel center
                     0,  # Optional offset

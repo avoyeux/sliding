@@ -8,9 +8,8 @@ from __future__ import annotations
 import numpy as np
 
 # IMPORTs local
-from programs.convolve_1d import Convolution1D
 from programs.convolve_3d import Convolution3D
-from programs.frederic_convolution import ConvolutionSTD
+from programs.frederic_convolution import FredericSTDs
 from programs.sospice_generic_filter import GenericFilter
 
 # IMPORTs personal
@@ -49,7 +48,6 @@ class CompareSTDs:
             abs_tol (float, optional): the absolute tolerance for comparison. Defaults to 1e-8.
         """
 
-
         self._data = data
         self._kernel_size = kernel_size
         self._tolerance = tolerance
@@ -64,6 +62,9 @@ class CompareSTDs:
         computations.
         """
 
+        print(f"The kernel size is {self._kernel_size}.")
+
+        # STD computations
         legacy = GenericFilter(
             data=self._data,
             kernel_size=self._kernel_size,
@@ -74,16 +75,11 @@ class CompareSTDs:
             kernel_size=self._kernel_size,
             with_nans=True,
         )
-        new = ConvolutionSTD(
+        new = FredericSTDs(
             data=self._data,
             kernel_size=self._kernel_size,
         )
-        new_1d = Convolution1D(
-            data=self._data,
-            kernel_size=self._kernel_size,
-            with_nans=False,
-        )
-        new_1d_nan = Convolution1D(
+        new_nan = FredericSTDs(
             data=self._data,
             kernel_size=self._kernel_size,
             with_nans=True,
@@ -92,11 +88,6 @@ class CompareSTDs:
             data=self._data,
             kernel_size=self._kernel_size,
             with_nans=False,
-        )
-        new_3d_nan = Convolution3D(
-            data=self._data,
-            kernel_size=self._kernel_size,
-            with_nans=True,
         )
 
         # COMPARE results
@@ -107,28 +98,22 @@ class CompareSTDs:
             value2=new.sdev,
         )
         self._print_comparison(
-            name1="Frederic's STDs",
-            name2="Convolution 1D no borders",
-            value1=new.sdev,
-            value2=new_1d.sdev,
+            name1="GenericFilter with NaNs",
+            name2="Frederic's STDs with NaNs",
+            value1=legacy_nan.sdev,
+            value2=new_nan.sdev,
         )
         self._print_comparison(
-            name1="GenericFilter with NaNs",
-            name2="Convolution 1D no borders with NaNs",
-            value1=legacy_nan.sdev,
-            value2=new_1d_nan.sdev,
+            name1="Frederic's STDs",
+            name2="Frederic's STDs with nans",
+            value1=new.sdev,
+            value2=new_nan.sdev,
         )
         self._print_comparison(
             name1="GenericFilter",
             name2="Convolution 3D",
             value1=legacy.sdev,
             value2=new_3d.sdev,
-        )
-        self._print_comparison(
-            name1="GenericFilter with NaNs",
-            name2="Convolution 3D with NaNs",
-            value1=legacy_nan.sdev,
-            value2=new_3d_nan.sdev,
         )
 
     def _print_comparison(self, name1: str, name2: str, value1: np.ndarray, value2: np.ndarray) -> None:
@@ -149,7 +134,11 @@ class CompareSTDs:
         )
 
         if all_equal:
-            print(f">>> SUCCESS: {name1} and {name2} are equal!")
+            print(
+                f">>> SUCCESS: {name1} and {name2} are equal! "
+                f"(min, max) are ({np.nanmin(value1):.5f}, {np.nanmax(value1):.5f})"
+                f"and ({np.nanmin(value2):.5f}, {np.nanmax(value2):.5f})"
+            )
         else:
             elements_equal = np.isclose(
                 a=value1,
@@ -172,8 +161,8 @@ class CompareSTDs:
 if __name__ == "__main__":
 
     CompareSTDs(
-        data=np.random.rand(50, 1024, 128).astype(np.float32),  # ? or float64 ?
-        kernel_size=5,
+        data=np.random.rand(36, 1024, 128).astype(np.float64) * (2**12 - 1),
+        kernel_size=3,
         tolerance=1e-5,
         abs_tol=1e-8,
     )

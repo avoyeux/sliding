@@ -67,7 +67,6 @@ class GenericFilter:
             np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the moving sample standard
                 deviation.
         """
-
         return self._std
 
     def _run(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:

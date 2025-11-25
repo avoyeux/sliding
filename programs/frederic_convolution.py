@@ -20,11 +20,11 @@ from common import Decorators
 from typing import Any
 
 # API public
-__all__ = ["ConvolutionSTD"]
+__all__ = ["FredericSTDs"]
 
 
 
-class ConvolutionSTD:
+class FredericSTDs:
     """
     To compute the moving sample standard deviations using convolutions.
     """
@@ -34,6 +34,7 @@ class ConvolutionSTD:
             self,
             data: np.ndarray[tuple[int, ...], np.dtype[Any]],
             kernel_size: int,
+            with_nans: bool = False,
         ) -> None:
         """
         Computes the moving sample standard deviations using convolutions. The size of each sample
@@ -45,11 +46,11 @@ class ConvolutionSTD:
                 standard deviations are computed.
             kernel_size (int): the size of the kernel (square) used for computing the moving sample
                 standard deviations.
-            verbose (int, optional): verbosity level for the prints. Defaults to 0.
-            flush (bool, optional): whether to flush the prints. Defaults to False.
+            with_nans (bool, optional): whether to handle NaNs in the data. Defaults to False.
         """
 
         self._data = data
+        self._with_nans = with_nans
         self._kernel = np.ones((kernel_size,) * 2, dtype=np.float64) / (kernel_size ** 2)
 
         # RUN
@@ -76,12 +77,32 @@ class ConvolutionSTD:
                 deviations.
         """
 
-        # STD
-        mean2 = self._convolution(self._data) ** 2
-        variance = self._convolution(self._data ** 2)
-        variance -= mean2
-        variance[variance <= 0] = 1e-20
-        return np.sqrt(variance)
+        if self._with_nans:
+            # Create mask for valid (non-NaN) values
+            valid_mask = ~np.isnan(self._data)
+            data_filled = np.where(valid_mask, self._data, 0.0)
+
+            # Compute mean and mean of squares with proper normalization
+            sum_values = self._convolution(data_filled)
+            sum_squares = self._convolution(data_filled ** 2)
+            count = self._convolution(valid_mask.astype(np.float64))
+
+            # Avoid division by zero
+            with np.errstate(divide='ignore', invalid='ignore'):
+                mean = np.where(count > 0, sum_values / count, 0.0)
+                mean_sq = np.where(count > 0, sum_squares / count, 0.0)
+
+            # Compute variance
+            variance = mean_sq - mean ** 2
+            variance = np.maximum(variance, 0.0)  # Handle numerical errors
+            return np.sqrt(variance)
+        else:
+            # STD
+            mean2 = self._convolution(self._data) ** 2
+            variance = self._convolution(self._data ** 2)
+            variance -= mean2
+            variance[variance <= 0] = 1e-20
+            return np.sqrt(variance)
 
     def _convolution(
             self,

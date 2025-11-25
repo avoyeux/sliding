@@ -1,6 +1,7 @@
 """
 Just to test partition vs median speeds as they were saying that they were using median.
 """
+from __future__ import annotations
 
 # IMPORTs alias
 import numpy as np
@@ -8,30 +9,43 @@ import numpy as np
 # IMPORTs personal
 from common import Decorators
 
+# API public
+__all__ = ["TestMedianSpeeds"]
+
 
 
 class TestMedianSpeeds:
-    # todo add docstring
+    """
+    To test the speed difference between median and partition methods.
+    """
 
     @Decorators.running_time
     def __init__(
-        self,
-        # data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
-        kernel_size: int = 3,
-        iterations: int = 100,
-    ) -> None:
-        
-        # todo need to decide how to do so when using a kernel
+            self,
+            kernel_size: int = 3,
+            iterations: int = 100,
+        ) -> None:
+        """
+        Compares the processing speed of the np.median and np.partition methods for and odd
+        sized cubic kernel.
 
-        # self._data = data
-        # self._kernel = (
-        #     np.ones((kernel_size,) * data.ndim, dtype=np.float64) / (kernel_size ** data.ndim)
-        # )
+        Args:
+            kernel_size (int, optional): the size of the cubic kernel. The value must be odd for
+                the median to be well defined. Defaults to 3.
+            iterations (int, optional): the number of iterations to run the test. Defaults to 100.
+        """
+
         self._kernel = np.random.rand(iterations, *[kernel_size] * 3).astype(np.float64)
+        self._partition_index = self._kernel[0].size // 2
         self._iterations = iterations
 
+        # RUN
+        self._run()
+
     def _run(self) -> None:
-        # todo add docstring
+        """
+        Runs the median and partition speed tests and compares their results.
+        """
 
         median_results = self._median()
         partition_results = self._partition()
@@ -48,7 +62,13 @@ class TestMedianSpeeds:
 
     @Decorators.running_time
     def _median(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
-        # todo add docstring
+        """
+        Uses the np.median function to run a number of computations.
+
+        Returns:
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the array of computed median
+                values.
+        """
 
         results = np.empty((self._iterations,), dtype=self._kernel.dtype)
         for i in range(self._iterations):
@@ -57,19 +77,20 @@ class TestMedianSpeeds:
 
     @Decorators.running_time
     def _partition(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
-        # todo add docstring
+        """
+        Uses the np.partition function to run a number of computations.
+
+        Returns:
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the array of computed median
+                values.
+        """
 
         results = np.empty((self._iterations,), dtype=self._kernel.dtype)
         for i in range(self._iterations):
-            part = np.partition(self._kernel[i].ravel(), self._kernel[i].size // 2)
-            results[i] = part[part.size // 2]
+            part = np.partition(self._kernel[i].ravel(), self._partition_index)
+            results[i] = part[self._partition_index]
         return results
 
 
-if __name__ == "__main__":
-    
-    TestMedianSpeeds(
-        # data=np.random.rand(1024, 1024).astype(np.float64),
-        kernel_size=5,
-        iterations=1_000_000,
-    )._run()
+
+if __name__ == "__main__": TestMedianSpeeds(kernel_size=3, iterations=1_000_000)

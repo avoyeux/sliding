@@ -20,11 +20,11 @@ from common import Decorators
 from typing import Any
 
 # API public
-__all__ = ["FredericSTDs"]
+__all__ = ["QuickSTDs"]
 
 
 
-class FredericSTDs:
+class QuickSTDs:
     """
     To compute the moving sample standard deviations using convolutions.
     """
@@ -34,7 +34,7 @@ class FredericSTDs:
             self,
             data: np.ndarray[tuple[int, ...], np.dtype[Any]],
             kernel_size: int,
-            with_nans: bool = False,
+            with_NaNs: bool = False,
         ) -> None:
         """
         Computes the moving sample standard deviations using convolutions. The size of each sample
@@ -46,11 +46,11 @@ class FredericSTDs:
                 standard deviations are computed.
             kernel_size (int): the size of the kernel (square) used for computing the moving sample
                 standard deviations.
-            with_nans (bool, optional): whether to handle NaNs in the data. Defaults to False.
+            with_NaNs (bool, optional): whether to handle NaNs in the data. Defaults to False.
         """
 
         self._data = data
-        self._with_nans = with_nans
+        self._with_NaNs = with_NaNs
         self._kernel = np.ones((kernel_size,) * 2, dtype=np.float64) / (kernel_size ** 2)
 
         # RUN
@@ -77,7 +77,7 @@ class FredericSTDs:
                 deviations.
         """
 
-        if self._with_nans:
+        if self._with_NaNs:
             # Create mask for valid (non-NaN) values
             valid_mask = ~np.isnan(self._data)
             data_filled = np.where(valid_mask, self._data, 0.0)
@@ -134,11 +134,11 @@ class FredericSTDs:
             for i in range(arr.shape[0]):
                 cv2.filter2D(
                     arr[i],
-                    -1,  # Same pixel depth as input
+                    -1,
                     self._kernel,
                     output[i],
-                    (-1, -1),  # Anchor is kernel center
-                    0,  # Optional offset
+                    (-1, -1),
+                    0,
                     cv2.BORDER_REFLECT,
                 )
             kernel_1d = (
@@ -148,11 +148,11 @@ class FredericSTDs:
                 dum = np.empty_like(output[:, :, i])
                 cv2.filter2D(
                     np.ascontiguousarray(output[:, :, i]),  # * contiguous for C implementation
-                    -1,  # Same pixel depth as input
+                    -1,
                     kernel_1d,
                     dum,
-                    (-1, -1),  # Anchor is kernel center
-                    0,  # Optional offset
+                    (-1, -1),
+                    0,
                     cv2.BORDER_REFLECT,
                 )
                 output[:, :, i] = dum

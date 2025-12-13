@@ -8,9 +8,9 @@ from __future__ import annotations
 import numpy as np
 
 # IMPORTs local
-from programs.convolve_3d import Convolution3D
-from programs.frederic_convolution import FredericSTDs
-from programs.sospice_generic_filter import GenericFilter
+from programs.standard_deviation.convolve_3d import Convolution3D
+from programs.standard_deviation.frederic_convolution import QuickSTDs
+from programs.standard_deviation.sospice_generic_filter import GenericFilter
 
 # IMPORTs personal
 from common import Decorators
@@ -75,14 +75,14 @@ class CompareSTDs:
             kernel_size=self._kernel_size,
             with_nans=True,
         )
-        new = FredericSTDs(
+        new = QuickSTDs(
             data=self._data,
             kernel_size=self._kernel_size,
         )
-        new_nan = FredericSTDs(
+        new_nan = QuickSTDs(
             data=self._data,
             kernel_size=self._kernel_size,
-            with_nans=True,
+            with_NaNs=True,
         )
         new_3d = Convolution3D(
             data=self._data,

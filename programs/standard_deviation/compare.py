@@ -77,11 +77,11 @@ class CompareSTDs:
         )
         new = QuickSTDs(
             data=self._data,
-            kernel_size=self._kernel_size,
+            kernel=self._kernel_size,
         )
         new_nan = QuickSTDs(
             data=self._data,
-            kernel_size=self._kernel_size,
+            kernel=self._kernel_size,
             with_NaNs=True,
         )
         new_3d = Convolution3D(

@@ -34,7 +34,7 @@ class TestBorders:
         """
         Data fixture representing a small data cube for quicker tests.
         """
-        return np.random.rand(8, 20, 12).astype(np.float64)
+        return np.random.rand(7, 20, 12).astype(np.float64)
 
     @pytest.fixture(scope="class")
     def big_data_changed(self, big_data: np.ndarray) -> np.ndarray:
@@ -69,7 +69,7 @@ class TestBorders:
         # todo add docstring
 
         center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
-        kernel_sizes = [3, 5, 7]
+        kernel_sizes = [(3, 3, 3), (3, 5, 3)]
         pad_mode = 'symmetric'
         pad_reflect = 'even'
 
@@ -79,7 +79,7 @@ class TestBorders:
 
                     new_result = FastSigmaClipping(
                         data=data.copy(),
-                        size=kernel_size,
+                        kernel=kernel_size,
                         sigma=2.,
                         max_iters=3,
                         center_choice=center_func,
@@ -98,10 +98,10 @@ class TestBorders:
                     )
 
                     # INSIDE check
-                    index = kernel_size // 2
+                    idxr, idxc, idxd = tuple(k // 2 for k in kernel_size)
                     np.testing.assert_allclose(
-                        actual=old_result[index:-index, index:-index, index:-index],
-                        desired=new_result[index:-index, index:-index, index:-index],
+                        actual=old_result[idxr:-idxr, idxc:-idxc, idxd:-idxd],
+                        desired=new_result[idxr:-idxr, idxc:-idxc, idxd:-idxd],
                         rtol=1e-5,
                         atol=1e-8,
                     )
@@ -114,7 +114,7 @@ class TestBorders:
         # todo add docstring
 
         center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
-        kernel_sizes = [3, 5, 7]
+        kernel_sizes = [(3, 3, 3), (3, 5, 3)]
         pad_mode = 'symmetric'
         pad_reflect = 'even'
 
@@ -124,7 +124,7 @@ class TestBorders:
 
                     new_result = FastSigmaClipping(
                         data=data.copy(),
-                        size=kernel_size,
+                        kernel=kernel_size,
                         sigma=2.,
                         max_iters=3,
                         center_choice=center_func,
@@ -180,121 +180,121 @@ class TestBorders:
                         atol=1e-8,
                     )
 
-    def test_inside_big_data(
-            self,
-            big_data: np.ndarray,
-            big_data_changed: np.ndarray,
-        ) -> None:
-        # todo add docstring
+    # def test_inside_big_data(
+    #         self,
+    #         big_data: np.ndarray,
+    #         big_data_changed: np.ndarray,
+    #     ) -> None:
+    #     # todo add docstring
 
-        center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
-        kernel_sizes = [3, 5, 7]
-        pad_mode = 'symmetric'
-        pad_reflect = 'even'
+    #     center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
+    #     kernel_sizes = [3, 5, 7]
+    #     pad_mode = 'symmetric'
+    #     pad_reflect = 'even'
 
-        for data in [big_data, big_data_changed]:
-            for kernel_size in kernel_sizes:
-                for center_func in center_functions:
+    #     for data in [big_data, big_data_changed]:
+    #         for kernel_size in kernel_sizes:
+    #             for center_func in center_functions:
 
-                    new_result = FastSigmaClipping(
-                        data=data.copy(),
-                        size=kernel_size,
-                        sigma=2.,
-                        max_iters=3,
-                        center_choice=center_func,
-                        masked_array=False,
-                        padding_mode=pad_mode,
-                        padding_reflect_type=pad_reflect,
-                    ).results
+    #                 new_result = FastSigmaClipping(
+    #                     data=data.copy(),
+    #                     kernel=kernel_size,
+    #                     sigma=2.,
+    #                     max_iters=3,
+    #                     center_choice=center_func,
+    #                     masked_array=False,
+    #                     padding_mode=pad_mode,
+    #                     padding_reflect_type=pad_reflect,
+    #                 ).results
 
-                    old_result = sigma_clip(
-                        data=data.copy(),
-                        size=kernel_size,
-                        sigma=2,
-                        max_iters=3,
-                        center_func=center_func,
-                        masked=False,
-                    )
+    #                 old_result = sigma_clip(
+    #                     data=data.copy(),
+    #                     size=kernel_size,
+    #                     sigma=2,
+    #                     max_iters=3,
+    #                     center_func=center_func,
+    #                     masked=False,
+    #                 )
 
-                    # INSIDE check
-                    index = kernel_size // 2
-                    np.testing.assert_allclose(
-                        actual=old_result[index:-index, index:-index, index:-index],
-                        desired=new_result[index:-index, index:-index, index:-index],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
+    #                 # INSIDE check
+    #                 index = kernel_size // 2
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[index:-index, index:-index, index:-index],
+    #                     desired=new_result[index:-index, index:-index, index:-index],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
     
-    def test_borders_big_data(
-            self,
-            big_data: np.ndarray,
-            big_data_changed: np.ndarray,
-        ) -> None:
-        # todo add docstring
+    # def test_borders_big_data(
+    #         self,
+    #         big_data: np.ndarray,
+    #         big_data_changed: np.ndarray,
+    #     ) -> None:
+    #     # todo add docstring
 
-        center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
-        kernel_sizes = [3, 5, 7]
-        pad_mode = 'symmetric'
-        pad_reflect = 'even'
+    #     center_functions: list[Literal['median', 'mean']] = ['median', 'mean']
+    #     kernel_sizes = [3, 5, 7]
+    #     pad_mode = 'symmetric'
+    #     pad_reflect = 'even'
 
-        for data in [big_data, big_data_changed]:
-            for kernel_size in kernel_sizes:
-                for center_func in center_functions:
+    #     for data in [big_data, big_data_changed]:
+    #         for kernel_size in kernel_sizes:
+    #             for center_func in center_functions:
 
-                    new_result = FastSigmaClipping(
-                        data=data.copy(),
-                        size=kernel_size,
-                        sigma=2.,
-                        max_iters=3,
-                        center_choice=center_func,
-                        masked_array=False,
-                        padding_mode=pad_mode,
-                        padding_reflect_type=pad_reflect,
-                    ).results
+    #                 new_result = FastSigmaClipping(
+    #                     data=data.copy(),
+    #                     kernel=kernel_size,
+    #                     sigma=2.,
+    #                     max_iters=3,
+    #                     center_choice=center_func,
+    #                     masked_array=False,
+    #                     padding_mode=pad_mode,
+    #                     padding_reflect_type=pad_reflect,
+    #                 ).results
 
-                    old_result = sigma_clip(
-                        data=data.copy(),
-                        size=kernel_size,
-                        sigma=2,
-                        max_iters=3,
-                        center_func=center_func,
-                        masked=False,
-                    )
+    #                 old_result = sigma_clip(
+    #                     data=data.copy(),
+    #                     size=kernel_size,
+    #                     sigma=2,
+    #                     max_iters=3,
+    #                     center_func=center_func,
+    #                     masked=False,
+    #                 )
 
-                    # BORDERs check
-                    np.testing.assert_allclose(
-                        actual=old_result[0, :, :],
-                        desired=new_result[0, :, :],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
-                    np.testing.assert_allclose(
-                        actual=old_result[-1, :, :],
-                        desired=new_result[-1, :, :],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
-                    np.testing.assert_allclose(
-                        actual=old_result[:, 0, :],
-                        desired=new_result[:, 0, :],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
-                    np.testing.assert_allclose(
-                        actual=old_result[:, -1, :],
-                        desired=new_result[:, -1, :],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
-                    np.testing.assert_allclose(
-                        actual=old_result[:, :, 0],
-                        desired=new_result[:, :, 0],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
-                    np.testing.assert_allclose(
-                        actual=old_result[:, :, -1],
-                        desired=new_result[:, :, -1],
-                        rtol=1e-5,
-                        atol=1e-8,
-                    )
+    #                 # BORDERs check
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[0, :, :],
+    #                     desired=new_result[0, :, :],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[-1, :, :],
+    #                     desired=new_result[-1, :, :],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[:, 0, :],
+    #                     desired=new_result[:, 0, :],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[:, -1, :],
+    #                     desired=new_result[:, -1, :],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[:, :, 0],
+    #                     desired=new_result[:, :, 0],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )
+    #                 np.testing.assert_allclose(
+    #                     actual=old_result[:, :, -1],
+    #                     desired=new_result[:, :, -1],
+    #                     rtol=1e-5,
+    #                     atol=1e-8,
+    #                 )

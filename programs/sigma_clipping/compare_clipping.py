@@ -22,16 +22,19 @@ class CompareClipping:
     def __init__(
             self,
             data: np.ndarray,
-            kernel_size: int,
+            kernel_size: int | tuple[int, int, int],
             sigma: float = 3.,
             sigma_lower: float | None = None,
             sigma_upper: float | None = None,
             max_iters: int | None = 5,
             tolerance: float = 1e-5,
             abs_tol: float = 1e-8,
+            threads: int | None = 1,
         ) -> None:
+        # todo add docstring
 
         self._data = data
+        self._threads = threads
         self._kernel_size = kernel_size
         self._tolerance = tolerance
         self._abs_tol = abs_tol
@@ -48,7 +51,7 @@ class CompareClipping:
 
         new_result = FastSigmaClipping(
             data=self._data,
-            size=self._kernel_size,
+            kernel=self._kernel_size,
             sigma=self._sigma,
             center_choice='median',
             sigma_lower=self._sigma_lower,
@@ -59,7 +62,7 @@ class CompareClipping:
 
         new_result2 = FastSigmaClipping(
             data=self._data,
-            size=self._kernel_size,
+            kernel=self._kernel_size,
             center_choice='mean',
             sigma=self._sigma,
             sigma_lower=self._sigma_lower,
@@ -149,16 +152,18 @@ class CompareClipping:
 if __name__ == "__main__":
 
     data = np.random.rand(36, 1024, 128).astype(np.float64)
-    data[5:10, 100:200, 50: 80] = 10.
-    data[15:20, 500:600, 90: 120] = 3.
-    data[2:7, :, 10:90] = 20.
+    # data = np.random.rand(22, 200, 80).astype(np.float64)
+
+    # data[5:10, 100:200, 50: 80] = 10.
+    # data[15:20, 500:600, 90: 100] = 3.
+    # data[2:7, :, 10:90] = 20.
 
     # RUN comparison
     CompareClipping(
         data=data,
-        kernel_size=3,
-        sigma=2,
-        max_iters=1,
+        kernel_size=(3, 3, 3),
+        sigma=3.,
+        max_iters=3,
         tolerance=1e-5,
         abs_tol=1e-8,
     )

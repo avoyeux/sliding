@@ -9,7 +9,7 @@ import numpy as np
 
 # IMPORTs local
 from programs.standard_deviation.convolve_3d import Convolution3D
-from programs.standard_deviation.frederic_convolution import QuickSTDs
+from programs.standard_deviation.frederic_convolution import StandardDeviation
 from programs.standard_deviation.sospice_generic_filter import GenericFilter
 
 # IMPORTs personal
@@ -75,11 +75,11 @@ class CompareSTDs:
             kernel_size=self._kernel_size,
             with_nans=True,
         )
-        new = QuickSTDs(
+        new = StandardDeviation(
             data=self._data,
             kernel=self._kernel_size,
         )
-        new_nan = QuickSTDs(
+        new_nan = StandardDeviation(
             data=self._data,
             kernel=self._kernel_size,
             with_NaNs=True,

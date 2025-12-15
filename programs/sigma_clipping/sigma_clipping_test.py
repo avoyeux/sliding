@@ -11,24 +11,19 @@ from numpy import ma
 from numba import set_num_threads
 
 # IMPORTs local
-from programs.standard_deviation import QuickSTDs
+from programs.standard_deviation import BorderType, Convolution, StandardDeviation
 from programs.sigma_clipping.numba_functions import (
-    tuple_sliding_nanmean_3d, tuple_sliding_nanmedian_3d,
-    sliding_weighted_mean_3d, sliding_weighted_median_3d,
+    tuple_sliding_nanmedian_3d, sliding_weighted_median_3d,
 )
 
 # IMPORTs personal
 from common import Decorators
 
 # TYPE ANNOTATIONs
-from typing import cast, Literal, overload
+from typing import cast, Literal, overload, Any
 type KernelType = (
-    int | tuple[int, int, int] | np.ndarray[tuple[int, int, int], np.dtype[np.float64]]
+    int | tuple[int, int, int] | np.ndarray[tuple[int, int, int], np.dtype[np.floating]]
 )
-type PadModeType = Literal[
-    'constant', 'edge', 'linear_ramp', 'maximum', 'mean', 'median', 'minimum', 'reflect',
-    'symmetric', 'wrap', 'empty',
-]
 
 # API public
 __all__ = ["FastSigmaClipping"]
@@ -56,11 +51,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             sigma_lower: float | None = None,
             sigma_upper: float | None = None,
             max_iters: int | None = 5,
-            masked_array: Literal[True] = True,
-            padding_mode: PadModeType = 'symmetric',
-            padding_reflect_type: Literal['even', 'odd'] = 'even',
-            padding_constant_values: float = np.nan,
+            borders: BorderType = 'reflect',
             threads: int | None = 1,
+            masked_array: Literal[True] = True,
         ) -> None: ...
 
     @overload
@@ -73,12 +66,10 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             sigma_lower: float | None = None,
             sigma_upper: float | None = None,
             max_iters: int | None = 5,
+            borders: BorderType = 'reflect',
+            threads: int | None = 1,
             *,
             masked_array: Literal[False],
-            padding_mode: PadModeType = 'symmetric',
-            padding_reflect_type: Literal['even', 'odd'] = 'even',
-            padding_constant_values: float = np.nan,
-            threads: int | None = 1,
         ) -> None: ...
 
     @overload  #fallback
@@ -91,11 +82,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             sigma_lower: float | None = None,
             sigma_upper: float | None = None,
             max_iters: int | None = 5,
-            masked_array: bool = True,
-            padding_mode: PadModeType = 'symmetric',
-            padding_reflect_type: Literal['even', 'odd'] = 'even',
-            padding_constant_values: float = np.nan,
+            borders: BorderType = 'reflect',
             threads: int | None = 1,
+            masked_array: bool = True,
         ) -> None: ...
 
     @Decorators.running_time
@@ -108,11 +97,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             sigma_lower: float | None = None,
             sigma_upper: float | None = None,
             max_iters: int | None = 5,
-            masked_array: bool = True,
-            padding_mode: PadModeType = 'symmetric',
-            padding_reflect_type: Literal['even', 'odd'] = 'even',
-            padding_constant_values: float = np.nan,
+            borders: BorderType = 'reflect',
             threads: int | None = 1,
+            masked_array: bool = True,
         ) -> None:
         """
         Runs the sigma clipping where the flagged pixels are swapped with the center value (mean or
@@ -123,7 +110,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         more pixels flagged.
         NOTE: 
             ! kernel size must be odd (wouldn't make sense otherwise).
-            use default padding mode values to replicate scipy's reflect behaviour.
 
         Args:
             data (np.ndarray): the data to sigma clip.
@@ -141,18 +127,14 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 the upper clipping limit. It will be set to 'sigma' if None. Defaults to None.
             max_iters (int | None, optional): the maximum number of iterations to perform.
                 If None, iterate until convergence. Defaults to 5.
-            masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
-                ndarray (False). Defaults to True.
-            padding_mode (PadModeType, optional): the padding mode of numpy.pad to use when
-                padding the input data for center calculations. If no padding is desired (hence
-                smaller windows on the edges), set it to 'constant' and 'padding_constant_values'
-                to np.nan. Defaults to 'symmetric'.
-            padding_reflect_type (Literal['even', 'odd'], optional): the reflect type to use when
-                'padding_mode' is set to 'reflect' or 'symmetric'. Defaults to 'even'.
-            padding_constant_values (float, optional): the constant value to use when
-                'padding_mode' is set to 'constant'. Defaults to np.nan.
+            borders (BorderType, optional): the type of borders to use. These are the type of
+                borders used by OpenCV (not all OpenCV borders are implemented as some don't have
+                the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
+                no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
             threads (int | None, optional): the number of threads to use for numba and cv2
                 parallelization. If None, uses the default number of threads. Defaults to 1.
+            masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
+                ndarray (False). Defaults to True.
 
         Raises:
             ValueError: if the kernel size is not odd.
@@ -161,15 +143,19 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         self._data = data
         self._sigma = sigma
         self._kernel = kernel
+        self._borders = borders
         self._threads = threads
         self._masked_array = masked_array
         self._center_choice = center_choice
         self._sigma_lower = sigma_lower if sigma_lower is not None else sigma
         self._sigma_upper = sigma_upper if sigma_upper is not None else sigma
         self._max_iters = cast(int, max_iters if max_iters is not None else np.inf)
-        self._padding_mode = padding_mode
-        self._padding_reflect_type = padding_reflect_type
-        self._padding_constant_values = padding_constant_values
+
+        # PADDING setup
+        padding_settings = self._get_padding()
+        self._padding_mode = padding_settings['mode']
+        self._padding_reflect_type = padding_settings.get('reflect', 'even')
+        self._padding_constant_values = padding_settings.get('constant_values', 0.)
 
         # CHECKs
         self._check_kernel()
@@ -191,6 +177,35 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             Output: the sigma clipped data.
         """
         return self._sigma_clipped
+
+    def _get_padding(self) -> dict[str, Any]:
+        """
+        To get the corresponding np.pad parameters given the border type.
+        """
+
+        if self._borders is None:
+            # ADAPTATIVE borders
+            result = {
+                'mode': 'constant',
+                'constant_values': np.nan,
+            }
+        elif self._borders == 'reflect':
+            result = {
+                'mode': 'symmetric',
+                'reflect': 'even',
+            }
+        elif self._borders == 'constant':
+            result = {
+                'mode': 'constant',
+                'constant_values': 0.,
+            }
+        elif self._borders == 'replicate':
+            result = {'mode': 'edge'}
+        elif self._borders == 'wrap':
+            result = {'mode': 'wrap'}
+        else:
+            raise ValueError(f"Unknown border type: {self._borders}")
+        return result
 
     def _check_kernel(self) -> None:
         """
@@ -238,8 +253,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         output = self._data.copy()
 
-        # PLACEHOLDER so IDE doesn't complain
+        # TYPE CHECKER complains
         centers = np.empty(1)
+        self._borders = cast(BorderType, self._borders)
 
         # COUNTs
         changed: bool = True
@@ -250,11 +266,12 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
             # CENTERs and STDDEVs
             centers = self._get_center(output)
-            std_devs = QuickSTDs(
+            std_devs = StandardDeviation(
                 data=output,
                 kernel=self._kernel,
+                borders=self._borders,
                 with_NaNs=True,
-                cv2_threads=self._threads,
+                threads=self._threads,
             ).sdev
 
             diffs = output - centers
@@ -273,7 +290,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         if self._masked_array: return cast(Output, ma.masked_array(output, mask=isnan))
         return cast(Output, output)
 
-    # @Decorators.running_time
+    @Decorators.running_time
     def _get_center(self, data: np.ndarray) -> np.ndarray:
         """
         To get the sliding median of 'data' given a kernel size.
@@ -302,12 +319,19 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             np.ndarray: the sliding mean result.
         """
 
+        # TYPE CHECKER complains
         kernel = cast(int | tuple[int, int, int], self._kernel)  # for the type checker
+
+        # KERNEL setup
         if isinstance(kernel, int): kernel = cast(tuple[int, int, int], (kernel,) * 3)
+
+        # MEAN
+        if self._center_choice == 'mean': 
+            return self._get_mean(data=data, kernel=np.ones(kernel, dtype=data.dtype))
+
+        # MEDIAN
         pad = tuple((k // 2, k // 2) for k in kernel)
         padded = self._add_padding(data, pad)
-
-        if self._center_choice == 'mean': return tuple_sliding_nanmean_3d(padded, kernel)
         return tuple_sliding_nanmedian_3d(padded, kernel)
 
     def _get_center_custom(self, data: np.ndarray) -> np.ndarray:
@@ -322,12 +346,53 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             np.ndarray: the sliding mean result.
         """
 
+        # TYPE CHECKER complains
         kernel = cast(np.ndarray, self._kernel)  # for the type checker
+
+        # MEAN
+        if self._center_choice == 'mean': return self._get_mean(data, kernel)
+
+        # MEDIAN
         pad = tuple((k // 2, k // 2) for k in kernel.shape)
         padded = self._add_padding(data, pad)
-
-        if self._center_choice == 'mean': return sliding_weighted_mean_3d(padded, kernel)
         return sliding_weighted_median_3d(padded, kernel)
+
+    def _get_mean(self, data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+        """
+        Gives the sliding mean given the data and a kernel.
+
+        Args:
+            data (np.ndarray): the data to get the sliding mean for.
+            kernel (np.ndarray): the kernel to use for the sliding mean.
+
+        Returns:
+            np.ndarray: the sliding mean result.
+        """
+
+        # TYPE CHECKER complains
+        self._borders = cast(BorderType, self._borders)
+
+        # NaN handling
+        valid_mask = ~np.isnan(data)
+        data_filled = np.where(valid_mask, data, 0.)
+
+        # SUM n MEAN
+        kernel /= kernel.sum()
+        sum_values = Convolution(
+            data=data_filled,
+            kernel=kernel,
+            borders=self._borders,
+            threads=self._threads,
+        ).result
+        count = Convolution(
+            data=valid_mask.astype(data.dtype),
+            kernel=kernel,
+            borders=self._borders,
+            threads=self._threads,
+        ).result
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mean = np.where(count > 0, sum_values / count, 0.0)
+        return mean
 
     def _add_padding(self, data: np.ndarray, pad: tuple[tuple[int, int], ...]) -> np.ndarray:
         """
@@ -348,7 +413,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 mode=cast(Literal['edge'], self._padding_mode),
                 constant_values=self._padding_constant_values,
             )
-        elif self._padding_mode in ['reflect', 'symmetric']:
+        elif self._padding_mode in ['reflect', 'symmetric']:  # ! cannot be reflect any more
             padded = np.pad(
                 array=data,
                 pad_width=pad,
@@ -366,29 +431,19 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
 
 if __name__ == "__main__":
-    data = np.random.rand(36, 1024, 128).astype(np.float64)
-    data[5:10, 100:200, 50: 80] = 10.
-    data[15:20, 500:600, 90: 120] = 3.
-    data[2:7, :, 10:90] = 20.
+    data = np.random.rand(220, 200, 800).astype(np.float64)
 
-    size = 7
-    kernel = np.zeros((size, size, size), dtype=np.float64)
-    x, y, z = np.ogrid[0:size, 0:size, 0:size]
-    center = size // 2
-    radius = 2.0
-    distance = np.sqrt((x - center)**2 + (y - center)**2 + (z - center)**2)
-    kernel[distance <= radius] = 1.0
-    kernel[center, center, center] = 0.0
+    data[:10, 100:180, 50: 70] = 10.
+    # data[15:20, 500:600, 90: 100] = 3.
+    data[2:4, :, 10:80] = 20.
 
     sigma_clipper = FastSigmaClipping(
         data=data,
-        kernel=kernel,
-        center_choice='median',
+        kernel=(7, 7, 7),
+        center_choice='mean',
         sigma=2,
         max_iters=5,
         masked_array=True,
-        threads=2,
-        padding_mode='constant',
-        padding_constant_values=np.nan,
+        threads=6,
     )
     result = sigma_clipper.results

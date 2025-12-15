@@ -153,11 +153,11 @@ class CompareClipping:
 
 if __name__ == "__main__":
 
-    data = np.random.rand(36, 1024, 128).astype(np.float64)
-    # data = np.random.rand(22, 200, 80).astype(np.float64)
+    # data = np.random.rand(36, 1024, 128).astype(np.float64)
+    data = np.random.rand(22, 200, 80).astype(np.float64)
 
     data[:10, 100:180, 50: 70] = 10.
-    data[15:20, 500:600, 90: 100] = 3.
+    # data[15:20, 500:600, 90: 100] = 3.
     data[2:4, :, 10:80] = 20.
 
     # RUN comparison
@@ -168,5 +168,5 @@ if __name__ == "__main__":
         max_iters=3,
         tolerance=1e-5,
         abs_tol=1e-8,
-        threads=20,
+        threads=32,
     )

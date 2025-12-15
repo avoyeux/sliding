@@ -50,7 +50,7 @@ class CompareClipping:
         # todo add docstring
 
         new_result = FastSigmaClipping(
-            data=self._data,
+            data=self._data.copy(),
             kernel=self._kernel_size,
             sigma=self._sigma,
             center_choice='median',
@@ -58,10 +58,11 @@ class CompareClipping:
             sigma_upper=self._sigma_upper,
             max_iters=self._max_iters,
             masked_array=False,
+            threads=self._threads,
         ).results
 
         new_result2 = FastSigmaClipping(
-            data=self._data,
+            data=self._data.copy(),
             kernel=self._kernel_size,
             center_choice='mean',
             sigma=self._sigma,
@@ -69,10 +70,11 @@ class CompareClipping:
             sigma_upper=self._sigma_upper,
             max_iters=self._max_iters,
             masked_array=False,
+            threads=self._threads,
         ).results
 
         old_result = old_sigma_clip(
-            data=self._data,
+            data=self._data.copy(),
             size=self._kernel_size,
             sigma=self._sigma,
             sigma_lower=self._sigma_lower,
@@ -83,7 +85,7 @@ class CompareClipping:
         )
 
         old_result2 = old_sigma_clip(
-            data=self._data,
+            data=self._data.copy(),
             size=self._kernel_size,
             sigma=self._sigma,
             sigma_lower=self._sigma_lower,
@@ -154,9 +156,9 @@ if __name__ == "__main__":
     data = np.random.rand(36, 1024, 128).astype(np.float64)
     # data = np.random.rand(22, 200, 80).astype(np.float64)
 
-    # data[5:10, 100:200, 50: 80] = 10.
-    # data[15:20, 500:600, 90: 100] = 3.
-    # data[2:7, :, 10:90] = 20.
+    data[:10, 100:180, 50: 70] = 10.
+    data[15:20, 500:600, 90: 100] = 3.
+    data[2:4, :, 10:80] = 20.
 
     # RUN comparison
     CompareClipping(
@@ -166,4 +168,5 @@ if __name__ == "__main__":
         max_iters=3,
         tolerance=1e-5,
         abs_tol=1e-8,
+        threads=20,
     )

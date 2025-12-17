@@ -14,6 +14,7 @@ from numba import set_num_threads
 from programs.standard_deviation import BorderType, Convolution, StandardDeviation
 from programs.sigma_clipping.numba_functions import (
     tuple_sliding_nanmedian_3d, sliding_weighted_median_3d,
+    tuple_sliding_nanmedian_nd, sliding_weighted_median_nd,
 )
 
 # IMPORTs personal
@@ -21,9 +22,8 @@ from common import Decorators
 
 # TYPE ANNOTATIONs
 from typing import cast, Literal, overload, Any
-type KernelType = (
-    int | tuple[int, int, int] | np.ndarray[tuple[int, int, int], np.dtype[np.floating]]
-)
+type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
+
 
 # API public
 __all__ = ["FastSigmaClipping"]
@@ -102,6 +102,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             masked_array: bool = True,
         ) -> None:
         """
+        todo update docstring
         Runs the sigma clipping where the flagged pixels are swapped with the center value (mean or
         median) for that pixel. The  input data is assumed to be 3 dimensional.
         The result can be gotten from the 'results' property and will be an numpy.ma.MaskedArray if
@@ -158,7 +159,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         self._padding_constant_values = padding_settings.get('constant_values', 0.)
 
         # CHECKs
-        self._check_kernel()
+        self._kernel_dim = self._check_kernel()
         self._check_data()
 
         # RUN
@@ -207,8 +208,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             raise ValueError(f"Unknown border type: {self._borders}")
         return result
 
-    def _check_kernel(self) -> None:
+    def _check_kernel(self) -> int:
         """
+        todo update docstring
         Checks input kernel size validity.
 
         Raises:
@@ -218,12 +220,15 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         if isinstance(self._kernel, int):
             if self._kernel % 2 == 0: raise ValueError("Kernel size must be odd.")
+            return self._data.ndim
         elif isinstance(self._kernel, tuple):
             if any(k % 2 == 0 for k in self._kernel):
                 raise ValueError("All kernel dimensions must be odd.")
+            return len(self._kernel)
         elif isinstance(self._kernel, np.ndarray):
             if any(s % 2 == 0 for s in self._kernel.shape):
                 raise ValueError("All kernel dimensions must be odd.")
+            return self._kernel.ndim
         else:
             raise TypeError("Kernel must be an int, tuple of ints or a numpy ndarray.")
 
@@ -232,11 +237,11 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         Checks input data validity.
 
         Raises:
-            ValueError: if the input data is not 3 dimensional.
+            ValueError: if the input data has not the same dimensionality as the kernel.
         """
 
-        if self._data.ndim != 3:
-            raise ValueError("Input data must be 3 dimensional.")
+        if self._data.ndim != self._kernel_dim:
+            raise ValueError("Input data must have the same dimensionality as the kernel.")
 
     def _run(self) -> Output:
         """
@@ -320,10 +325,10 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         """
 
         # TYPE CHECKER complains
-        kernel = cast(int | tuple[int, int, int], self._kernel)  # for the type checker
+        kernel = cast(int | tuple[int, ...], self._kernel)  # for the type checker
 
         # KERNEL setup
-        if isinstance(kernel, int): kernel = cast(tuple[int, int, int], (kernel,) * 3)
+        if isinstance(kernel, int): kernel = cast(tuple[int, ...], (kernel,) * self._kernel_dim)
 
         # MEAN
         if self._center_choice == 'mean': 
@@ -332,7 +337,11 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         # MEDIAN
         pad = tuple((k // 2, k // 2) for k in kernel)
         padded = self._add_padding(data, pad)
-        return tuple_sliding_nanmedian_3d(padded, kernel)
+
+        # MEDIAN choice
+        # todo add an efficient 2D
+        if self._kernel_dim == 3: return tuple_sliding_nanmedian_nd(padded, kernel)
+        return tuple_sliding_nanmedian_nd(padded, kernel)
 
     def _get_center_custom(self, data: np.ndarray) -> np.ndarray:
         """
@@ -355,7 +364,11 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         # MEDIAN
         pad = tuple((k // 2, k // 2) for k in kernel.shape)
         padded = self._add_padding(data, pad)
-        return sliding_weighted_median_3d(padded, kernel)
+
+        # MEDIAN choice
+        # todo add an efficient 2D
+        if self._kernel_dim == 3: return sliding_weighted_median_nd(padded, kernel)
+        return sliding_weighted_median_nd(padded, kernel)
 
     def _get_mean(self, data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
         """
@@ -431,19 +444,48 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
 
 if __name__ == "__main__":
-    data = np.random.rand(220, 200, 800).astype(np.float64)
+    # data = np.random.rand(220, 600, 800).astype(np.float64)
+    data = np.random.rand(36, 1024, 128).astype(np.float64)
 
-    data[:10, 100:180, 50: 70] = 10.
+    data[..., :10, 100:180, 50: 70] = 10.
     # data[15:20, 500:600, 90: 100] = 3.
-    data[2:4, :, 10:80] = 20.
+    data[..., 2:4, :, 10:80] = 20.
 
-    sigma_clipper = FastSigmaClipping(
-        data=data,
-        kernel=(7, 7, 7),
-        center_choice='mean',
-        sigma=2,
-        max_iters=5,
-        masked_array=True,
-        threads=6,
-    )
-    result = sigma_clipper.results
+    kernel = np.ones((5, 5, 5), dtype=np.float64)
+    kernel[1, 1, 1] = 0.
+
+    kernel = (5, 3, 5)
+
+    # sigma_clipper = FastSigmaClipping(
+    #     data=data,
+    #     kernel=kernel,
+    #     center_choice='median',
+    #     sigma=2,
+    #     max_iters=5,
+    #     masked_array=True,
+    #     threads=20,
+    # )
+    # result = sigma_clipper.results
+
+
+    #     # 3D test
+    # data = np.random.rand(8, 10, 12)
+    # data[1, 2, 3] = np.nan
+    # kernel3 = (3, 3, 3)
+
+    out3d = tuple_sliding_nanmedian_3d(data, kernel)
+    outnd = tuple_sliding_nanmedian_nd(data, kernel)
+    print(outnd.shape)
+    assert out3d.shape == outnd.shape
+    assert np.allclose(out3d, outnd, equal_nan=True)
+    print("✅ 3D and nD results match!")
+
+    kernel = np.ones((5, 5, 5), dtype=np.float64)
+    kernel[1, 1, 1] = 0.
+
+    out3d = sliding_weighted_median_3d(data, kernel)
+    outnd = sliding_weighted_median_nd(data, kernel)
+    print(outnd.shape)
+    assert out3d.shape == outnd.shape
+    assert np.allclose(out3d, outnd, equal_nan=True)
+    print("✅ 3D and nD results match!")

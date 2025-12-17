@@ -472,19 +472,31 @@ if __name__ == "__main__":
     # data = np.random.rand(8, 10, 12)
     # data[1, 2, 3] = np.nan
     # kernel3 = (3, 3, 3)
-
+    import time
     out3d = tuple_sliding_nanmedian_3d(data, kernel)
+
+
+    start = time.time()
+    out3d = tuple_sliding_nanmedian_3d(data, kernel)
+    end = time.time()
+    print(f"3D time: {end - start:.4f} s")
     outnd = tuple_sliding_nanmedian_nd(data, kernel)
+    end_nd = time.time()
+    print(f"nD time: {end_nd - end:.4f} s")
     print(outnd.shape)
     assert out3d.shape == outnd.shape
     assert np.allclose(out3d, outnd, equal_nan=True)
     print("✅ 3D and nD results match!")
 
-    kernel = np.ones((5, 5, 5), dtype=np.float64)
-    kernel[1, 1, 1] = 0.
-
+    kernel = np.ones((5, 3, 5), dtype=np.float64)
+    kernel[2, 2, 2] = 0.
+    start = time.time()
     out3d = sliding_weighted_median_3d(data, kernel)
+    end = time.time()
+    print(f"3D time: {end - start:.4f} s")
     outnd = sliding_weighted_median_nd(data, kernel)
+    end_nd = time.time()
+    print(f"nD time: {end_nd - end:.4f} s")
     print(outnd.shape)
     assert out3d.shape == outnd.shape
     assert np.allclose(out3d, outnd, equal_nan=True)

@@ -15,7 +15,7 @@ from scipy.ndimage import convolve
 from threadpoolctl import threadpool_limits
 
 # TYPE ANNOTATIONs
-from typing import Literal
+from typing import Literal, cast
 type BorderType = Literal['reflect', 'constant', 'replicate', 'wrap'] | None
 
 # API public
@@ -61,7 +61,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
 
         self._borders = borders
         self._input_dtype = data.dtype
-        self._data = data.copy()
+        self._data: Data = data.copy()
         self._kernel = kernel
 
         # RUN
@@ -124,7 +124,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
             ones_2d = np.ones((self._data.shape[1], self._data.shape[2]), dtype=self._data.dtype)
             counts_2d = np.empty(ones_2d.shape, dtype=self._data.dtype)
             cv2.filter2D(ones_2d, -1, kernel_2d, counts_2d, (-1, -1), 0, cv2.BORDER_CONSTANT)
-            self._data /= counts_2d[None, ...]
+            self._data /= counts_2d[None, ...]#type:ignore
 
             # KERNEL 1D
             kernel_1d = np.ones((self._kernel.shape[0], 1), dtype=self._data.dtype)
@@ -155,7 +155,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
                 0,
                 cv2.BORDER_CONSTANT,
             )
-            self._data /= counts_1d[..., None]
+            self._data /= counts_1d[..., None]#type:ignore
 
         else:
             # CONVOLUTION standard
@@ -168,7 +168,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
             )
 
             # NORMALISATION
-            self._data /= counts
+            self._data /= counts#type:ignore
 
     def _convolve(self, data: Data, borders: str, output: Data | None = None) -> None:
         """

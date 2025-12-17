@@ -311,8 +311,7 @@ def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray)
     for i in range(ndim - 2, -1, -1):
         data_strides[i] = data_strides[i + 1] * data_shape[i + 1]
 
-    flat_kernel = kernel.ravel()
-    kernel_mask = ~np.isnan(flat_kernel)
+    flat_kernel, kernel_mask = _kernel_setup(kernel)
     kernel_size = flat_kernel.size
 
     # Kernel offsets (in data flat index, relative to window origin)

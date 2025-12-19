@@ -3,4 +3,4 @@ Directory contains code to perform different implementation of the sigma clippin
 """
 
 from programs.sigma_clipping.old_sigma_clipping import sigma_clip
-from programs.sigma_clipping.sigma_clipping_test import FastSigmaClipping
+from programs.sigma_clipping.fast_sigma_clipping import FastSigmaClipping

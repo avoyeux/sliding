@@ -14,11 +14,11 @@ from programs.standard_deviation.convolution import Convolution, BorderType
 from common import Decorators
 
 # API public
-__all__ = ["StandardDeviation"]
+__all__ = ["FastStandardDeviation"]
 
 
 
-class StandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
+class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
     """
     To compute the moving sample standard deviations using convolutions.
     """

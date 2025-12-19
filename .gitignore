@@ -13,6 +13,7 @@
 # TYPEs whitelist
 !**/*.pro
 !**/*.py
+!**/*.ipynb
 !**/*.md
 !**/*.yml
 !**/*.txt

@@ -9,9 +9,6 @@ import numpy as np
 # IMPORTs sub
 from scipy.ndimage import generic_filter
 
-# IMPORTs personal
-from common import Decorators
-
 # TYPE ANNOTATIONs
 from typing import Any, Callable
 
@@ -25,7 +22,6 @@ class GenericFilter:
     Simple class that just implements scipy.ndimage.generic_filter.
     """
 
-    @Decorators.running_time
     def __init__(
             self,
             data: np.ndarray[tuple[int, ...], np.dtype[Any]],

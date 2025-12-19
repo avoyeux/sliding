@@ -15,7 +15,7 @@ from scipy.ndimage import convolve
 from threadpoolctl import threadpool_limits
 
 # TYPE ANNOTATIONs
-from typing import Literal, cast
+from typing import Literal
 type BorderType = Literal['reflect', 'constant', 'replicate', 'wrap'] | None
 
 # API public

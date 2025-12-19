@@ -17,13 +17,9 @@ from programs.sigma_clipping.numba_functions import (
     tuple_sliding_nanmedian_nd, sliding_weighted_median_nd,
 )
 
-# IMPORTs personal
-from common import Decorators
-
 # TYPE ANNOTATIONs
 from typing import cast, Literal, overload, Any
 type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
-
 
 # API public
 __all__ = ["FastSigmaClipping"]
@@ -291,7 +287,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         if self._masked_array: return cast(Output, ma.masked_array(output, mask=isnan))
         return cast(Output, output)
 
-    @Decorators.running_time
     def _get_center(self, data: np.ndarray) -> np.ndarray:
         """
         To get the sliding median of 'data' given a kernel size.

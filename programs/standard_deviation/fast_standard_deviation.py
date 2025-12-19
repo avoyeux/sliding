@@ -10,9 +10,6 @@ import numpy as np
 # IMPORTs local
 from programs.standard_deviation.convolution import Convolution, BorderType
 
-# IMPORTs personal
-from common import Decorators
-
 # API public
 __all__ = ["FastStandardDeviation"]
 
@@ -23,7 +20,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
     To compute the moving sample standard deviations using convolutions.
     """
 
-    @Decorators.running_time
     def __init__(
             self,
             data: Data,

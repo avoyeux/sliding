@@ -10,9 +10,6 @@ import numpy as np
 from numpy import ma
 from scipy.ndimage import generic_filter
 
-# IMPORTs personal
-from common import Decorators
-
 # TYPE ANNOTATIONs
 from typing import cast, Literal, Callable
 
@@ -39,7 +36,6 @@ def _get_numpy_function(data: np.ndarray, name: str) -> Callable[..., np.ndarray
     if np.isnan(data).any(): name = "nan" + name
     return getattr(np, name)
 
-@Decorators.running_time
 def sigma_clip[T: np.ndarray](
         data: T,
         size: int | tuple[int, ...],

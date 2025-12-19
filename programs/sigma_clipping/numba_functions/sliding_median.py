@@ -20,6 +20,7 @@ __all__ = [
 # ! 3-D implementation for kernel with weights seems slower than n-D implementation
 
 
+
 @njit
 def _fast_median(window: np.ndarray) -> np.floating | float:
     """
@@ -224,22 +225,22 @@ def _tuple_sliding_nanmedian_nd_flat(
     # SIZE output
     output_size = 1
     for s in output_shape: output_size *= s
-    if output_size == 0: return np.empty(0, dtype=data.dtype)
+    if output_size == 0: return np.empty(0, dtype=data.dtype)  # ? should I ?
 
-    # Data strides (C-order)
-    data_strides = np.empty(ndim, dtype=np.intp)
+    # STRIDEs
+    data_strides = np.empty(ndim, dtype=np.int64)
     data_strides[-1] = 1
     for i in range(ndim - 2, -1, -1): data_strides[i] = data_strides[i + 1] * data_shape[i + 1]
 
-    # Kernel shape as array
-    kernel_shape = np.empty(ndim, dtype=np.intp)
+    # SHAPE as array
+    kernel_shape = np.empty(ndim, dtype=np.int64)
     for i in range(ndim): kernel_shape[i] = kernel[i]
 
     kernel_size = 1
     for s in kernel_shape: kernel_size *= s
 
-    # Precompute kernel offsets in flat data index space
-    kernel_offsets = np.empty(kernel_size, dtype=np.intp)
+    # OFFSETs for kernel
+    kernel_offsets = np.empty(kernel_size, dtype=np.int64)
     for k in range(kernel_size):
         temp = k
         offset = 0
@@ -248,44 +249,35 @@ def _tuple_sliding_nanmedian_nd_flat(
             temp //= kernel_shape[d]
             offset += coord * data_strides[d]
         kernel_offsets[k] = offset
-
     results = np.empty(output_size, dtype=data.dtype)
 
-    # Parallelize over first dimension
     for i0 in prange(output_shape[0]):
         rest_size = 1
-        for i in range(1, ndim):
-            rest_size *= output_shape[i]
+        for i in range(1, ndim): rest_size *= output_shape[i]
 
         for rest_idx in range(rest_size):
-            # Build full output coordinate
-            out_coords = np.empty(ndim, dtype=np.intp)
+            # COORDINATEs output
+            out_coords = np.empty(ndim, dtype=np.int64)
             out_coords[0] = i0
             temp = rest_idx
             for d in range(ndim - 1, 0, -1):
                 out_coords[d] = temp % output_shape[d]
                 temp //= output_shape[d]
 
-            # Compute flat result index (C-order)
+            # INDEX result
             res_idx = 0
             res_strides = 1
             for d in range(ndim - 1, -1, -1):
                 res_idx += out_coords[d] * res_strides
-                if d > 0:
-                    res_strides *= output_shape[d]
+                if d > 0: res_strides *= output_shape[d]
 
-            # Or simpler: precompute result strides (but we avoid to save memory)
-            # Alternative: just compute flat index manually as above
-
-            # Compute data origin flat index
+            # ORIGIN index data
             origin_flat = 0
-            for d in range(ndim):
-                origin_flat += out_coords[d] * data_strides[d]
+            for d in range(ndim): origin_flat += out_coords[d] * data_strides[d]
 
-            # Extract window
+            # EXTRACT window
             window = np.empty(kernel_size, dtype=data.dtype)
-            for k in range(kernel_size):
-                window[k] = data.flat[origin_flat + kernel_offsets[k]]
+            for k in range(kernel_size): window[k] = data.flat[origin_flat + kernel_offsets[k]]
 
             results[res_idx] = _fast_median(window)
     return results
@@ -309,37 +301,34 @@ def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray)
     data_shape = data.shape
     kernel_shape = kernel.shape
 
-    # Compute output shape
-    output_shape = np.empty(ndim, dtype=np.intp)
+    # SHAPE output
+    output_shape = np.empty(ndim, dtype=np.int64)
     for i in range(ndim):
         output_shape[i] = data_shape[i] - kernel_shape[i] + 1
 
-    # Early exit
+    # SIZE output
     output_size = 1
-    for s in output_shape:
-        output_size *= s
-    if output_size == 0:
-        return np.empty(0, dtype=data.dtype)
-
+    for s in output_shape: output_size *= s
+    if output_size == 0: return np.empty(0, dtype=data.dtype)  # ? should I ?
     results = np.empty(output_size, dtype=data.dtype)
 
-    # Strides for flattening results later (C-order)
-    result_strides = np.empty(ndim, dtype=np.intp)
+    # STRIDEs result
+    result_strides = np.empty(ndim, dtype=np.int64)
     result_strides[-1] = 1
     for i in range(ndim - 2, -1, -1):
         result_strides[i] = result_strides[i + 1] * output_shape[i + 1]
 
-    # Data strides
-    data_strides = np.empty(ndim, dtype=np.intp)
+    # STRIDEs data
+    data_strides = np.empty(ndim, dtype=np.int64)
     data_strides[-1] = 1
-    for i in range(ndim - 2, -1, -1):
-        data_strides[i] = data_strides[i + 1] * data_shape[i + 1]
+    for i in range(ndim - 2, -1, -1): data_strides[i] = data_strides[i + 1] * data_shape[i + 1]
 
+    # KERNEL flip
     flat_kernel, kernel_mask = _kernel_setup(kernel)
     kernel_size = flat_kernel.size
 
-    # Kernel offsets (in data flat index, relative to window origin)
-    kernel_offsets = np.empty(kernel_size, dtype=np.intp)
+    # OFFSETs for kernel
+    kernel_offsets = np.empty(kernel_size, dtype=np.int64)
     for k in range(kernel_size):
         temp = k
         offset = 0
@@ -349,40 +338,33 @@ def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray)
             offset += coord * data_strides[d]
         kernel_offsets[k] = offset
 
-    # Parallelize over the FIRST dimension only
     for i0 in prange(output_shape[0]):
-        # Now iterate over all other dimensions with nested loops
-        # We'll generate all indices where first coord = i0
-        # Total combinations for remaining dims:
         rest_size = 1
-        for i in range(1, ndim):
-            rest_size *= output_shape[i]
+        for i in range(1, ndim): rest_size *= output_shape[i]
 
         for rest_idx in range(rest_size):
-            # Build full output coordinate: [i0, i1, i2, ...]
-            out_coords = np.empty(ndim, dtype=np.intp)
+            # COORDINATEs output
+            out_coords = np.empty(ndim, dtype=np.int64)
             out_coords[0] = i0
             temp = rest_idx
             for d in range(ndim - 1, 0, -1):  # from last dim down to dim 1
                 out_coords[d] = temp % output_shape[d]
                 temp //= output_shape[d]
 
-            # Compute flat result index
+            # INDEX result
             res_idx = 0
-            for d in range(ndim):
-                res_idx += out_coords[d] * result_strides[d]
+            for d in range(ndim): res_idx += out_coords[d] * result_strides[d]
 
-            # Compute data origin flat index
+            # ORIGIN index data
             origin_flat = 0
-            for d in range(ndim):
-                origin_flat += out_coords[d] * data_strides[d]
+            for d in range(ndim): origin_flat += out_coords[d] * data_strides[d]
 
-            # Extract window
+            # EXTRACT window
             window_vals = np.empty(kernel_size, dtype=data.dtype)
             for k in range(kernel_size):
                 window_vals[k] = data.flat[origin_flat + kernel_offsets[k]]
 
-            # Apply weights
+            # WEIGHTED MEDIAN
             valid_data = window_vals[kernel_mask]
             valid_weights = flat_kernel[kernel_mask]
             good = ~np.isnan(valid_data)
@@ -397,10 +379,8 @@ def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray)
                 cumsum_w = np.cumsum(sorted_w)
                 threshold = cumsum_w[-1] / 2.0
                 idx = 0
-                while cumsum_w[idx] < threshold:
-                    idx += 1
+                while cumsum_w[idx] < threshold: idx += 1
                 results[res_idx] = sorted_vals[idx]
-
     return results
 
 
@@ -438,7 +418,7 @@ def tuple_sliding_nanmedian_nd(data: np.ndarray, kernel: tuple[int, ...]) -> np.
 
     # SHAPE output
     output_shape_tuple = tuple(int(d - k + 1) for d, k in zip(data.shape, kernel))
-    output_shape_arr = np.array(output_shape_tuple, dtype=np.intp)
+    output_shape_arr = np.array(output_shape_tuple, dtype=np.int64)
 
     # MEDIAN sliding
     result_flat = _tuple_sliding_nanmedian_nd_flat(data, kernel, output_shape_arr)

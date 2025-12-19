@@ -22,7 +22,7 @@ from programs.sigma_clipping.numba_functions import (
 )
 
 # TYPE ANNOTATIONs
-from typing import Literal, cast, Any
+from typing import Literal, cast
 
 
 
@@ -98,7 +98,7 @@ class TestBorders:
         else:
             raise ValueError(f"Unknown border type: {self._borders}")
         return result
-    
+
     def _add_padding(self, data: np.ndarray, pad: tuple[tuple[int, int], ...]) -> np.ndarray:
         """
         To add padding to 'data' given the pad widths and the padding mode.

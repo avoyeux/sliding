@@ -36,7 +36,7 @@ class TestBorders:
         """
         Data fixture representing a normal SPICE data cube.
         """
-        return np.random.rand(36, 1024, 128).astype(np.float64) # todo change it to normal data range
+        return np.random.rand(36, 1024, 128).astype(np.float64) * (2**12 - 1)
 
     @pytest.fixture(scope="class")
     def small_data(self) -> np.ndarray:
@@ -53,9 +53,9 @@ class TestBorders:
         """
 
         data = big_data.copy()
-        data[5:10, 100:200, 50: 80, ...] = 10.
+        data[5:10, 100:200, 50: 80, ...] = 10. * (2**12 - 1)
         data[15:20, 500:600, 90: 120, ...] = 3.
-        data[:4, :, 10:90, ...] = 20.
+        data[:4, :, 10:90, ...] = 20. * (2**12 - 1)
         return data
 
     @pytest.fixture(scope="class")
@@ -213,10 +213,11 @@ class TestBorders:
             time_array_3d = end_array_3d - end_nd
             time_array_nd = end_array_nd - end_array_3d
 
-            print(f"tuple 3d time: {time_3d:.4f} s")
-            print(f"tuple nd time: {time_nd:.4f} s")
-            print(f"array 3d time: {time_array_3d:.4f} s")
-            print(f"array nd time: {time_array_nd:.4f} s")
+            print(f"tuple 3d: {time_3d:.2f} s")
+            print(f"tuple nd: {time_nd:.2f} s")
+            print(f"array 3d: {time_array_3d:.2f} s")
+            print(f"array nd: {time_array_nd:.2f} s")
+            print()
 
             # INSIDE check
             index = max(kernel_tuple) // 2
@@ -293,52 +294,54 @@ class TestBorders:
 
     def test_sigma_clipping(
             self,
-            small_data: np.ndarray,
-            small_data_changed: np.ndarray,
+            big_data: np.ndarray,
+            big_data_changed: np.ndarray,
         ) -> None:
         """
         To compare the full sigma clipping implementations between the old and new code.
         """
-
+        print()
         sigma = 2
-        max_iters = 2
-        kernel_size = (3, 3, 3, 5)
+        max_iters = 1
+        centers: list[Literal['mean', 'median']] = ['mean', 'median']
+        kernel_size = (3, 3, 3)
 
-        for data in [small_data, small_data_changed]:
-            start = time.time()
-            old_result = sigma_clip(
-                data=data.copy(),
-                size=kernel_size,
-                sigma=sigma,
-                max_iters=max_iters,
-                center_func='median',
-                masked=False,
-            )
-            end_old = time.time()
+        for center in centers:
+            for data in [big_data, big_data_changed]:
+                start = time.time()
+                old_result = sigma_clip(
+                    data=data.copy(),
+                    size=kernel_size,
+                    sigma=sigma,
+                    max_iters=max_iters,
+                    center_func=center,
+                    masked=False,
+                )
+                end_old = time.time()
 
-            new_result = FastSigmaClipping(
-                data=data.copy(),
-                kernel=kernel_size,
-                sigma=sigma,
-                max_iters=max_iters,
-                center_choice='median',
-                borders='reflect',
-                threads=1,
-                masked_array=False,
-            ).results
-            end_new = time.time()
+                new_result = FastSigmaClipping(
+                    data=data.copy(),
+                    kernel=kernel_size,
+                    sigma=sigma,
+                    max_iters=max_iters,
+                    center_choice=center,
+                    borders='reflect',
+                    threads=None,
+                    masked_array=False,
+                ).results
+                end_new = time.time()
 
-            print(f"Old sigma clipping time: {end_old - start:.4f} s")
-            print(f"New sigma clipping time: {end_new - end_old:.4f} s")
+                print(f"\033[1;92mOld ({center}): {end_old - start:.2f} s")
+                print(f"New ({center}): {end_new - end_old:.2f} s\033[0m")
 
-            # INSIDE check
-            index = max(kernel_size) // 2
-            np.testing.assert_allclose(
-                actual=old_result[index:-index, index:-index, index:-index, index:-index],
-                desired=new_result[index:-index, index:-index, index:-index, index:-index],
-                rtol=1e-5,
-                atol=1e-8,
-            )
+                # INSIDE check
+                index = max(kernel_size) // 2
+                np.testing.assert_allclose(
+                    actual=old_result[index:-index, index:-index, index:-index],
+                    desired=new_result[index:-index, index:-index, index:-index],
+                    rtol=1e-5,
+                    atol=1e-8,
+                )
 
-            # BORDERs check
-            self._borders_check(old_result, new_result)
+                # BORDERs check
+                self._borders_check(old_result, new_result)

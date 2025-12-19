@@ -28,8 +28,6 @@ type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[n
 # API public
 __all__ = ["FastSigmaClipping"]
 
-# todo make it work for any dimension
-
 
 
 class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
@@ -87,7 +85,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             masked_array: bool = True,
         ) -> None: ...
 
-    @Decorators.running_time
     def __init__(
             self,
             data: np.ndarray,
@@ -102,13 +99,13 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             masked_array: bool = True,
         ) -> None:
         """
-        todo update docstring
         Runs the sigma clipping where the flagged pixels are swapped with the center value (mean or
-        median) for that pixel. The  input data is assumed to be 3 dimensional.
-        The result can be gotten from the 'results' property and will be an numpy.ma.MaskedArray if
-        'masked_array' is set to True, else a numpy.array.
-        The sigma clipping is done iteratively 'max_iters' number of times or till there are no
-        more pixels flagged.
+        median) for that pixel. The input data need to be have at least 2 dimensions and the kernel
+        needs to be of the same dimensions than the input data.
+        The result can is accessed through the 'results' property and will be a
+        numpy.ma.MaskedArray if 'masked_array' is set to True, else a numpy.array. The sigma
+        clipping is done iteratively 'max_iters' number of times or till there are no more pixels
+        are flagged.
         NOTE: 
             ! kernel size must be odd (wouldn't make sense otherwise).
 
@@ -121,7 +118,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             center_choice (Literal['median', 'mean'], optional): the function to use for computing
                 the center value for each pixel. Defaults to 'median'.
             sigma (float): the number of standard deviations to use for both the lower and upper
-                clipping limit. overridden by 'sigma_lower' and 'sigma_upper'. 
+                clipping limit. Overridden by 'sigma_lower' and 'sigma_upper'. 
             sigma_lower (float | None, optional): the number of standard deviations to use for
                 the lower clipping limit. It will be set to 'sigma' if None. Defaults to None.
             sigma_upper (float | None, optional): the number of standard deviations to use for
@@ -136,9 +133,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 parallelization. If None, uses the default number of threads. Defaults to 1.
             masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
                 ndarray (False). Defaults to True.
-
-        Raises:
-            ValueError: if the kernel size is not odd.
         """
 
         self._data = data
@@ -210,11 +204,10 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     def _check_kernel(self) -> int:
         """
-        todo update docstring
         Checks input kernel size validity.
 
         Raises:
-            ValueError: if the kernel size is even.
+            ValueError: if any kernel dimension is even.
             TypeError: if the kernel is not an int, tuple of ints or a numpy ndarray.
         """
 
@@ -237,10 +230,13 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         Checks input data validity.
 
         Raises:
+            ValueError: if the input data has less than 2 dimensions.
             ValueError: if the input data has not the same dimensionality as the kernel.
         """
 
-        if self._data.ndim != self._kernel_dim:
+        if self._data.ndim < 2:
+            raise ValueError("Input data must have at least 2 dimensions.")
+        elif self._data.ndim != self._kernel_dim:
             raise ValueError("Input data must have the same dimensionality as the kernel.")
 
     def _run(self) -> Output:
@@ -339,8 +335,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         padded = self._add_padding(data, pad)
 
         # MEDIAN choice
-        # todo add an efficient 2D
-        if self._kernel_dim == 3: return tuple_sliding_nanmedian_nd(padded, kernel)
+        if self._kernel_dim == 3: return tuple_sliding_nanmedian_3d(padded, kernel)#type:ignore
         return tuple_sliding_nanmedian_nd(padded, kernel)
 
     def _get_center_custom(self, data: np.ndarray) -> np.ndarray:
@@ -367,7 +362,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         # MEDIAN choice
         # todo add an efficient 2D
-        if self._kernel_dim == 3: return sliding_weighted_median_nd(padded, kernel)
+        if self._kernel_dim == 3: return sliding_weighted_median_3d(padded, kernel)
         return sliding_weighted_median_nd(padded, kernel)
 
     def _get_mean(self, data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
@@ -390,7 +385,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         data_filled = np.where(valid_mask, data, 0.)
 
         # SUM n MEAN
-        kernel /= kernel.sum()
         sum_values = Convolution(
             data=data_filled,
             kernel=kernel,
@@ -399,7 +393,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         ).result
         count = Convolution(
             data=valid_mask.astype(data.dtype),
-            kernel=kernel,
+            kernel=np.ones(kernel.shape, dtype=data.dtype),
             borders=self._borders,
             threads=self._threads,
         ).result

@@ -93,8 +93,6 @@ def _kernel_setup(
         ]: the flattened flipped kernel and the mask of valid weights.
     """
 
-    # ! need to make sure that this gives the right result even for weirdly shaped kernels
-
     # FLIP setup
     kernel_flip = kernel.copy()
 
@@ -206,6 +204,20 @@ def _tuple_sliding_nanmedian_nd_flat(
         kernel: tuple[int, ...],
         output_shape: np.ndarray,
     ) -> np.ndarray:
+    """
+    To get the sliding median value for a n-dimensional input data and kernel.
+    Padding must be done beforehand to handle borders correctly.
+
+    Args:
+        data (np.ndarray): the padded data to get the sliding median for. Can and should contain
+            NaNs.
+        kernel (tuple[int, ...]): the shape of the kernel.
+        output_shape (np.ndarray): the shape of the output array.
+
+    Returns:
+        np.ndarray: the sliding median result.
+    """
+
     ndim = len(kernel)
     data_shape = data.shape
 
@@ -276,11 +288,23 @@ def _tuple_sliding_nanmedian_nd_flat(
                 window[k] = data.flat[origin_flat + kernel_offsets[k]]
 
             results[res_idx] = _fast_median(window)
-
     return results
 
 @njit(parallel=True)
 def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """
+    To get the weighted sliding median for a n-dimensional input data and kernel.
+    Padding must be done beforehand to handle borders correctly.
+
+    Args:
+        data (np.ndarray): the padded data to get the sliding median for. Can and should contain
+            NaNs.
+        kernel (np.ndarray): the weighted kernel.
+
+    Returns:
+        np.ndarray: the sliding median result.
+    """
+
     ndim = data.ndim
     data_shape = data.shape
     kernel_shape = kernel.shape
@@ -382,21 +406,14 @@ def _sliding_weighted_median_nd_numba_flat(data: np.ndarray, kernel: np.ndarray)
 
 def sliding_weighted_median_nd(data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
-    todo change docstring
-    Compute sliding weighted median for n-dimensional data with an nD kernel.
-    
-    Parameters
-    ----------
-    data : np.ndarray
-        Padded input data (may contain NaNs).
-    kernel : np.ndarray
-        Weight kernel with same number of dimensions as `data`.
-        NaNs in kernel are treated as zero weight (ignored).
-    
-    Returns
-    -------
-    np.ndarray
-        Sliding weighted median with shape = data.shape - kernel.shape + 1.
+    To compute the sliding median for a weighted kernel and n-dimensional data.
+
+    Args:
+        data (np.ndarray): the n-dimensional data for which to get the sliding median.
+        kernel (np.ndarray): the weighted kernel with the same dimensionality than the input data.
+
+    Returns:
+        np.ndarray: the sliding median results.
     """
 
     # SHAPE output
@@ -408,21 +425,15 @@ def sliding_weighted_median_nd(data: np.ndarray, kernel: np.ndarray) -> np.ndarr
 
 def tuple_sliding_nanmedian_nd(data: np.ndarray, kernel: tuple[int, ...]) -> np.ndarray:
     """
-    todo change docstring
-    Compute sliding nanmedian for n-dimensional data with a uniform (unweighted) kernel.
-    
-    Parameters
-    ----------
-    data : np.ndarray
-        Padded input data (may contain NaNs).
-    kernel : tuple of ints
-        Shape of the sliding window, e.g., (3, 3) for 2D, (3, 5, 7) for 3D.
-        Must have same length as data.ndim.
-    
-    Returns
-    -------
-    np.ndarray
-        Sliding nanmedian with shape = tuple(d - k + 1 for d, k in zip(data.shape, kernel)).
+    To compute the sliding median for n-dimensional data and kernel.
+
+    Args:
+        data (np.ndarray): the n-dimensional data for which to get the sliding median.
+        kernel (tuple[int, ...]): the shape of the kernel (has to have the same dimensionality as
+            data).
+
+    Returns:
+        np.ndarray: the sliding median results.
     """
 
     # SHAPE output

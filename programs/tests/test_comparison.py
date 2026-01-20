@@ -39,7 +39,7 @@ class TestSigmaClipping:
 
         fits_files = glob.glob(
             '/home/avoyeux/Documents/work_codes/sigma_clipping_tests/results/*L1*.fits'
-        )[:50]
+        )
 
         print(f"Found {len(fits_files)} FITs files for testing sigma clipping.")
         return fits_files
@@ -85,7 +85,9 @@ class TestSigmaClipping:
 
     @staticmethod
     def run_process(input_queue: queue.Queue[str], result_queue: queue.Queue[dict]) -> None:
-        # todo add docstring
+        """
+        Runs a comparison check for each file in the input queue.
+        """
 
         while True:
             filepath = input_queue.get()

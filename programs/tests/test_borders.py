@@ -247,6 +247,7 @@ class TestBorders:
         To test if the different border options coincide properly between scipy, cv2 and np.pad
         implementations.
         """
+
         border_options = ['reflect', 'constant', 'replicate', 'wrap', None]
         kernel_size = (3, 7, 9)
 
@@ -300,11 +301,12 @@ class TestBorders:
         """
         To compare the full sigma clipping implementations between the old and new code.
         """
+
         print()
         sigma = 2
         max_iters = 1
         centers: list[Literal['mean', 'median']] = ['mean', 'median']
-        kernel_size = (3, 3, 3)
+        kernel_size = (3, 3, 3, 3)
 
         for center in centers:
             for data in [big_data, big_data_changed]:

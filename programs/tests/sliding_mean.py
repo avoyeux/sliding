@@ -33,7 +33,7 @@ def _kernel_setup(
         tuple[
             np.ndarray[tuple[int], np.dtype[np.float64]],
             np.ndarray[tuple[int], np.dtype[np.bool_]],
-        ]: the flattened flipped kernel and the mask of valid weights.
+    ---    ]: the flattened flipped kernel and the mask of valid weights.
     """
 
     kernel_flip = np.ascontiguousarray(kernel[::-1, ::-1, ::-1])

@@ -24,12 +24,18 @@ type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[n
 # API public
 __all__ = ["FastSigmaClipping"]
 
+# todo make sure of what needs to happen when the data has a shape like (1, something, something)
+# ? should I make sure that the input array is of type float64 as the code wasn't working as
+# ? intended (at least when the input wasn't of type floating).
+
 
 
 class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     """
-    To sigma clip an input 3 dimensional array with a kernel.
+    To do a sliding sigma clip of an input array with a given kernel.
     Use the 'results' property to get the sigma clipped array.
+    ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
+    ! (when the kernel is given as an ndarray or a tuple of ints).
 
     Raises:
         ValueError: if the kernel size is even.
@@ -95,15 +101,15 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             masked_array: bool = True,
         ) -> None:
         """
-        Runs the sigma clipping where the flagged pixels are swapped with the center value (mean or
-        median) for that pixel. The input data need to be have at least 2 dimensions and the kernel
-        needs to be of the same dimensions than the input data.
-        The result can is accessed through the 'results' property and will be a
-        numpy.ma.MaskedArray if 'masked_array' is set to True, else a numpy.array. The sigma
-        clipping is done iteratively 'max_iters' number of times or till there are no more pixels
-        are flagged.
+        Runs the sliding sigma clipping where the flagged pixels are swapped with the center value
+        (mean or median) for that pixel. The input data need to be have at least 2 dimensions and
+        the kernel needs to be of the same dimensions than the input data.
+        The result is accessed through the 'results' property and will be a numpy.ma.MaskedArray if
+        'masked_array' is set to True, else a numpy.array. The sigma clipping is done iteratively
+        'max_iters' number of times or till there are no more pixels flagged.
         NOTE: 
             ! kernel size must be odd (wouldn't make sense otherwise).
+            ! kernel dimensionality must match data dimensionality (when kernel is not an int).
 
         Args:
             data (np.ndarray): the data to sigma clip.
@@ -114,7 +120,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             center_choice (Literal['median', 'mean'], optional): the function to use for computing
                 the center value for each pixel. Defaults to 'median'.
             sigma (float): the number of standard deviations to use for both the lower and upper
-                clipping limit. Overridden by 'sigma_lower' and 'sigma_upper'. 
+                clipping limit. Overridden by 'sigma_lower' and/or 'sigma_upper'. 
             sigma_lower (float | None, optional): the number of standard deviations to use for
                 the lower clipping limit. It will be set to 'sigma' if None. Defaults to None.
             sigma_upper (float | None, optional): the number of standard deviations to use for
@@ -127,6 +133,8 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
             threads (int | None, optional): the number of threads to use for numba and cv2
                 parallelization. If None, uses the default number of threads. Defaults to 1.
+                ! Might not work as expected given than numpy, numba and cv2 do not always let you
+                ! set the number of threads at runtime.
             masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
                 ndarray (False). Defaults to True.
         """

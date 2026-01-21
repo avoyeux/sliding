@@ -30,10 +30,12 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
         ) -> None:
         """
         Computes the moving sample standard deviations using convolutions. The size of each sample
-        is defined by the kernel. If you decide to choose to have different weights in the kernel,
-        keep in mind that the standard deviation will take a little longer to compute (no
-        approximation possible).
+        is defined by the kernel. If you decide to have different weights in the kernel, keep in
+        mind that the standard deviation will take a little longer to compute (no approximation
+        possible).
         To retrieve the computed standard deviations, use the 'sdev' property.
+        ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
+        ! (when the kernel is given as an ndarray or a tuple of ints).
 
         Args:
             data (Data): the data for which the moving sample standard deviations are computed.
@@ -51,6 +53,8 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
                 it to False. Defaults to True.
             threads (int | None, optional): the number of threads to use for the computation.
                 If None, doesn't change any thread values. Defaults to 1.
+                ! Might not work as expected given than numpy, numba and cv2 do not always let you
+                ! set the number of threads at runtime.
         """
 
         self._data = data

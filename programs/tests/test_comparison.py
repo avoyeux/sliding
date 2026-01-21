@@ -53,7 +53,7 @@ class TestSigmaClipping:
         clipping method.
         """
 
-        nb_processes = min(8, len(data_files))
+        nb_processes = min(10, len(data_files))
 
         manager = mp.Manager()
         input_queue = manager.Queue()
@@ -78,7 +78,7 @@ class TestSigmaClipping:
         while not result_queue.empty():
             result = result_queue.get()
             if result['status'] == 'failure':
-                errors.append(f"{result['filepath']}: {result['error']}")
+                errors.append(f"{result['error']}")
 
         if errors:
             pytest.fail(f"Comparison failed for {len(errors)} files:\n" + "\n".join(errors))

@@ -24,9 +24,9 @@ type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[n
 # API public
 __all__ = ["FastSigmaClipping"]
 
-# todo make sure of what needs to happen when the data has a shape like (1, something, something)
 # ? should I make sure that the input array is of type float64 as the code wasn't working as
 # ? intended (at least when the input wasn't of type floating).
+# todo need to add .squeeze() when opening the FITS files.
 
 
 
@@ -259,7 +259,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         output = self._data.copy()
 
         # TYPE CHECKER complains
-        centers = np.empty(1)
+        centers = np.empty(0)
         self._borders = cast(BorderType, self._borders)
 
         # COUNTs
@@ -285,9 +285,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
             new_mask = lower | upper
 
             # UPDATE OUTPUT
-            changed = bool(new_mask.any())
             output[new_mask] = np.nan
             iterations += 1
+            changed = bool(new_mask.any())
 
         # FILTER NaNs
         isnan = np.isnan(output)
@@ -437,64 +437,3 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 mode=cast(Literal['edge'], self._padding_mode),
             )
         return padded
-
-
-
-if __name__ == "__main__":
-    # data = np.random.rand(220, 600, 800).astype(np.float64)
-    data = np.random.rand(36, 1024, 128).astype(np.float64)
-
-    data[..., :10, 100:180, 50: 70] = 10.
-    # data[15:20, 500:600, 90: 100] = 3.
-    data[..., 2:4, :, 10:80] = 20.
-
-    kernel = np.ones((5, 5, 5), dtype=np.float64)
-    kernel[1, 1, 1] = 0.
-
-    kernel = (5, 3, 5)
-
-    # sigma_clipper = FastSigmaClipping(
-    #     data=data,
-    #     kernel=kernel,
-    #     center_choice='median',
-    #     sigma=2,
-    #     max_iters=5,
-    #     masked_array=True,
-    #     threads=20,
-    # )
-    # result = sigma_clipper.results
-
-
-    #     # 3D test
-    # data = np.random.rand(8, 10, 12)
-    # data[1, 2, 3] = np.nan
-    # kernel3 = (3, 3, 3)
-    import time
-    out3d = tuple_sliding_nanmedian_3d(data, kernel)
-
-
-    start = time.time()
-    out3d = tuple_sliding_nanmedian_3d(data, kernel)
-    end = time.time()
-    print(f"3D time: {end - start:.4f} s")
-    outnd = tuple_sliding_nanmedian_nd(data, kernel)
-    end_nd = time.time()
-    print(f"nD time: {end_nd - end:.4f} s")
-    print(outnd.shape)
-    assert out3d.shape == outnd.shape
-    assert np.allclose(out3d, outnd, equal_nan=True)
-    print("✅ 3D and nD results match!")
-
-    kernel = np.ones((5, 3, 5), dtype=np.float64)
-    kernel[2, 2, 2] = 0.
-    start = time.time()
-    out3d = sliding_weighted_median_3d(data, kernel)
-    end = time.time()
-    print(f"3D time: {end - start:.4f} s")
-    outnd = sliding_weighted_median_nd(data, kernel)
-    end_nd = time.time()
-    print(f"nD time: {end_nd - end:.4f} s")
-    print(outnd.shape)
-    assert out3d.shape == outnd.shape
-    assert np.allclose(out3d, outnd, equal_nan=True)
-    print("✅ 3D and nD results match!")

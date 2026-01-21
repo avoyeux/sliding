@@ -85,7 +85,7 @@ def sigma_clip[T: np.ndarray](
     n_changed = 1
     iteration = 0
     # PLACEHOLDER
-    center = np.empty(1)
+    center = np.empty(0)
     while n_changed != 0 and (iteration < max_iters):
         iteration += 1
         start = time.time()

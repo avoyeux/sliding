@@ -18,20 +18,20 @@ __all__ = ['sliding_weighted_mean_3d', 'tuple_sliding_nanmean_3d']
 
 @njit
 def _kernel_setup(
-        kernel: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
+        kernel: np.ndarray[tuple[int, int, int], np.dtype[np.float32]],
     ) -> tuple[
-        np.ndarray[tuple[int], np.dtype[np.float64]],
+        np.ndarray[tuple[int], np.dtype[np.float32]],
         np.ndarray[tuple[int], np.dtype[np.bool_]],
     ]:
     """
     To flip the kernel (correlation vs convolution) and get the needed kernel mask.
 
     Args:
-        kernel (np.ndarray[tuple[int, int, int], np.dtype[np.float64]]): the kernel to setup.
+        kernel (np.ndarray[tuple[int, int, int], np.dtype[np.float32]]): the kernel to setup.
 
     Returns:
         tuple[
-            np.ndarray[tuple[int], np.dtype[np.float64]],
+            np.ndarray[tuple[int], np.dtype[np.float32]],
             np.ndarray[tuple[int], np.dtype[np.bool_]],
         ]: the flattened flipped kernel and the mask of valid weights.
     """
@@ -44,7 +44,7 @@ def _kernel_setup(
 @njit
 def _apply_kernel_weights(
         flat_window: np.ndarray,
-        flat_kernel: np.ndarray[tuple[int], np.dtype[np.float64]],
+        flat_kernel: np.ndarray[tuple[int], np.dtype[np.float32]],
         flat_kernel_not_nan: np.ndarray[tuple[int], np.dtype[np.bool_]],
     ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -52,7 +52,7 @@ def _apply_kernel_weights(
 
     Args:
         flat_window (np.ndarray): the flatten window to apply the kernel on.
-        flat_kernel (np.ndarray[tuple[int], np.dtype[np.float64]]): the flattened kernel.
+        flat_kernel (np.ndarray[tuple[int], np.dtype[np.float32]]): the flattened kernel.
         flat_kernel_not_nan (np.ndarray[tuple[int], np.dtype[np.bool_]]): the mask of the flattened
             kernel indicating which weights are valid (not NaN and not zero).
 
@@ -69,7 +69,7 @@ def _apply_kernel_weights(
 @njit(parallel=True)
 def sliding_weighted_mean_3d(
         data: np.ndarray,
-        kernel: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
+        kernel: np.ndarray[tuple[int, int, int], np.dtype[np.float32]],
     ) -> np.ndarray:
     """
     To get the sliding mean value for a given weighted kernel. Keep in mind that the input data
@@ -78,7 +78,7 @@ def sliding_weighted_mean_3d(
     Args:
         data (np.ndarray): the padded data to get the sliding mean for. Can and should contain
             NaNs.
-        kernel (np.ndarray[tuple[int, int, int], np.dtype[np.float64]]): the weighted kernel.
+        kernel (np.ndarray[tuple[int, int, int], np.dtype[np.float32]]): the weighted kernel.
 
     Returns:
         np.ndarray: the sliding mean result.

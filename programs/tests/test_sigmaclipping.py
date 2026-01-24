@@ -27,7 +27,7 @@ class TestSigmaClipping:
         Gives the FITs filepaths to the test FITS files.
         """
 
-        filepaths = TestUtils.get_filepaths()[:16]
+        filepaths = TestUtils.get_filepaths()
         print(f"Found {len(filepaths)} FITs files for testing sigma clipping.")
         return filepaths
 
@@ -70,8 +70,8 @@ class TestSigmaClipping:
             old_result = sigma_clip(
                 data=data,
                 size=3,
-                sigma=1,
-                max_iters=2,
+                sigma=3.,
+                max_iters=5,
                 center_func='mean',
                 masked=False,
             )
@@ -81,8 +81,8 @@ class TestSigmaClipping:
                 data=data,
                 kernel=3,
                 center_choice='mean',
-                sigma=1,
-                max_iters=2,
+                sigma=3.,
+                max_iters=5,
                 masked_array=False,
             ).results
 

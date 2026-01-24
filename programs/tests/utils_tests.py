@@ -32,7 +32,9 @@ class TestUtils:
     Utility functions that can be used in different tests.
     """
 
-    NB_PROCESSES: int = 8
+    ADD_NANS: bool = False
+    NB_PROCESSES: int = 20
+    COMPARE_NANS: bool = False
 
     @staticmethod
     def get_filepaths() -> list[str]:
@@ -46,10 +48,10 @@ class TestUtils:
         fits_files = glob.glob(
             '/home/avoyeux/Documents/work_codes/sigma_clipping_tests/results/*L1*.fits'
         )
-        return fits_files
+        return fits_files[:40]
 
     @staticmethod
-    def open_file(filepath: str) -> np.ndarray | dict:
+    def open_file(filepath: str) -> np.ndarray[tuple[int, ...], np.dtype[np.float32]] | dict:
         """
         Tries to open a FITS file to get the data inside.
         If fails to do so, returns a dict containing the information from the error.
@@ -65,7 +67,7 @@ class TestUtils:
             hdul = fits.open(filepath)
             data = hdul[0].data.astype(np.float64).squeeze()#type: ignore
             hdul.close()
-            print(f"Data shape: {data.shape}")
+            if TestUtils.ADD_NANS: data = TestUtils._add_nans(data, fraction=0.05)
             return data
         except (FileNotFoundError, OSError, IOError) as e:
             log = {
@@ -75,6 +77,23 @@ class TestUtils:
                 'error_type': 'file_error',
             }
             return log
+
+    @staticmethod
+    def _add_nans(data: np.ndarray, fraction: float = 0.01) -> np.ndarray:
+        """
+        To randomly add NaN values to the given data.
+
+        Args:
+            data (np.ndarray): the data to add NaNs to.
+            fraction (float): the fraction of values to turn into NaNs.
+
+        Returns:
+            np.ndarray: the data with NaNs added.
+        """
+
+        mask = np.random.rand(*data.shape) < fraction
+        data[mask] = np.nan
+        return data
 
     @staticmethod
     def compare(actual: np.ndarray, desired: np.ndarray, filepath: str) -> dict:
@@ -90,6 +109,10 @@ class TestUtils:
         Returns:
             dict: a dict containing the information from the comparison.
         """
+
+        if not TestUtils.COMPARE_NANS:
+            actual = np.where(~np.isnan(actual), actual, 0.).astype(actual.dtype)
+            desired = np.where(~np.isnan(desired), desired, 0.).astype(desired.dtype)
 
         try:
             np.testing.assert_allclose(

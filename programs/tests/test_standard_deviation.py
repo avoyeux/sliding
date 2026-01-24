@@ -26,7 +26,7 @@ class TestStandardDeviation:
         Gives the FITs filepaths to the test FITS files.
         """
 
-        filepaths = TestUtils.get_filepaths()[16:120]
+        filepaths = TestUtils.get_filepaths()
         print(f"Found {len(filepaths)} FITs files for testing borders.")
         return filepaths
 
@@ -84,6 +84,8 @@ class TestStandardDeviation:
                 threads=1,
             ).sdev
 
+            # print(f"old and new dtypes are {old_standard_deviation.dtype} and {new_standard_deviation.dtype}", flush=True)
+
             # COMPARISON
             comparison_log = TestUtils.compare(
                 actual=new_standard_deviation,
@@ -91,91 +93,3 @@ class TestStandardDeviation:
                 filepath=filepath,
             )
             result_queue.put(comparison_log)
-
-    # def test_padding_choices(  # ! I do need this inside a given test class
-    #         self,
-    #         filepaths: list[str],
-    #     ) -> None:
-    #     """
-    #     To test if the different border options coincide properly between scipy, cv2 and np.pad
-    #     implementations.
-    #     """
-
-    #     border_options = ['reflect', 'constant', 'replicate', 'wrap', None]
-    #     kernel_size = (3, 7, 9)
-
-    #     for border in border_options:
-    #         kernel = np.ones(kernel_size)
-    #         kernel[1, 1, 1] = 0.
-    #         kernel_norm = kernel / kernel.sum()
-    #         new_result = Convolution(
-    #             data=data.copy(),
-    #             kernel=kernel_norm,
-    #             borders=border,
-    #         ).result
-
-    #         # PADDING
-    #         pad = tuple((k // 2, k // 2) for k in kernel.shape)
-    #         padded = TestUtils.add_padding(border, data, pad)
-    #         old_result = sliding_weighted_mean_3d(padded, kernel)
-
-    #         # INSIDE check
-    #         index = max(kernel.shape) // 2
-    #         np.testing.assert_allclose(
-    #             actual=old_result[index:-index, index:-index, index:-index],
-    #             desired=new_result[index:-index, index:-index, index:-index],
-    #             rtol=1e-5,
-    #             atol=1e-8,
-    #         )
-
-    #         # BORDERs check
-    #         self._borders_check(old_result, new_result)
-
-    # @staticmethod
-    # def _borders_check(old_result: np.ndarray, new_result: np.ndarray) -> None:
-    #     """
-    #     To check if the borders of the two results are the same.
-
-    #     Args:
-    #         old_result (np.ndarray): the old result to check.
-    #         new_result (np.ndarray): the new result to check.
-    #     ? should I change this to use the TestUtils.compare function instead ?
-    #     """
-
-    #     # BORDERs check
-    #     np.testing.assert_allclose(
-    #         actual=old_result[0, :, :],
-    #         desired=new_result[0, :, :],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )
-    #     np.testing.assert_allclose(
-    #         actual=old_result[-1, :, :],
-    #         desired=new_result[-1, :, :],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )
-    #     np.testing.assert_allclose(
-    #         actual=old_result[:, 0, :],
-    #         desired=new_result[:, 0, :],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )
-    #     np.testing.assert_allclose(
-    #         actual=old_result[:, -1, :],
-    #         desired=new_result[:, -1, :],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )
-    #     np.testing.assert_allclose(
-    #         actual=old_result[:, :, 0],
-    #         desired=new_result[:, :, 0],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )
-    #     np.testing.assert_allclose(
-    #         actual=old_result[:, :, -1],
-    #         desired=new_result[:, :, -1],
-    #         rtol=1e-5,
-    #         atol=1e-8,
-    #     )

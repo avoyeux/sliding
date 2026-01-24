@@ -123,91 +123,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
                 "'kernel' must be an int, a tuple of ints, or a numpy ndarray."
             )
 
-    def _sdev_loc_try(self) -> Data:  # ! still working on it, might create a new sliding mean class
-        # ! as the mean operation is done a lot throughout the code.
-        """
-        Computes the moving sample standard deviations. The size of each sample is defined by the
-        kernel (square with a length of 'size').
-
-        Returns:
-            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample standard
-                deviations.
-        """
-
-        if self._with_NaNs:
-            # VALID (non-NaN)
-            valid_mask = ~np.isnan(self._data)
-            data_filled = np.where(valid_mask, self._data, 0.).astype(self._data.dtype)
-
-            # REFERENCE: Create larger kernel for smooth local background
-            coarse_shape = tuple(max(33, (s * 2) + 1) for s in self._kernel.shape)
-            coarse_kernel = np.ones(coarse_shape, dtype=self._data.dtype) / np.prod(coarse_shape)
-            
-            # Compute local reference (spatially-varying background)
-            sum_coarse = Convolution(
-                data=data_filled,
-                kernel=coarse_kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads
-            ).result
-            count_coarse = Convolution(
-                data=valid_mask.astype(self._data.dtype),
-                kernel=coarse_kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            
-            with np.errstate(divide='ignore', invalid='ignore'):
-                reference = np.where(count_coarse > 0, sum_coarse / count_coarse, 0.0).astype(self._data.dtype)
-
-            shifted_data = self._data - reference
-            data_filled = np.where(valid_mask, shifted_data, 0.).astype(self._data.dtype)
-
-            # SUM n MEAN
-            sum_values = Convolution(
-                data=data_filled,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads
-            ).result
-            sum_squares = Convolution(
-                data=data_filled ** 2,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            count = Convolution(
-                data=valid_mask.astype(self._data.dtype),
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            with np.errstate(divide='ignore', invalid='ignore'):
-                mean = np.where(count > 0, sum_values / count, 0.0)
-                mean_sq = np.where(count > 0, sum_squares / count, 0.0)
-
-            # STD
-            variance = mean_sq - mean ** 2
-            variance = np.maximum(variance, 0.0)
-            return np.sqrt(variance)#type:ignore
-        else:
-            # STD
-            mean2 = Convolution(
-                data=self._data,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads
-            ).result ** 2
-            variance = Convolution(
-                data=self._data ** 2,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            variance -= mean2
-            variance = np.maximum(variance, 0.0)
-            return np.sqrt(variance)#type:ignore
-
     def _sdev_loc(self) -> Data:  # ! problems with low values
         """
         Computes the moving sample standard deviations. The size of each sample is defined by the
@@ -222,7 +137,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
             # INSTABILITY helper
             global_median = np.nanmedian(self._data)
             shifted_data = self._data - global_median
-            # shifted_data = self._data
 
             # VALID (non-NaN)
             valid_mask = ~np.isnan(self._data)
@@ -259,7 +173,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
             # INSTABILITY helper
             global_median = np.median(self._data)
             shifted_data = self._data - global_median
-            # shifted_data = self._data
 
             # STD
             mean2 = Convolution(

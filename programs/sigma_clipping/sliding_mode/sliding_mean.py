@@ -34,7 +34,7 @@ class SlidingMean[Data: ArrayLike[np.floating[Any]]]:
         data: Data,
         kernel: Array,
         borders: BorderType = "reflect",
-        threads: int = 1,
+        threads: int | None = 1,
     ) -> None:
         """
         Computes the sliding mean of a given ndarray data and kernel.

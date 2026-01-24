@@ -11,15 +11,12 @@ from numpy import ma
 from numba import set_num_threads
 
 # IMPORTs local
-from programs.sigma_clipping.convolution import BorderType, Convolution
+from programs.sigma_clipping.convolution import BorderType
+from programs.sigma_clipping.sliding_mode import SlidingMean, SlidingMedian
 from programs.sigma_clipping.standard_deviation import FastStandardDeviation
-from programs.sigma_clipping.sliding_mode.numba_functions import (
-    tuple_sliding_nanmedian_3d, sliding_weighted_median_3d,
-    tuple_sliding_nanmedian_nd, sliding_weighted_median_nd,
-)
 
 # TYPE ANNOTATIONs
-from typing import cast, Literal, overload, Any
+from typing import cast, Literal, overload
 type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
 
 # API public
@@ -28,6 +25,7 @@ __all__ = ["FastSigmaClipping"]
 # ? should I make sure that the input array is of type float64 as the code wasn't working as
 # ? intended (at least when the input wasn't of type floating).
 # todo need to add .squeeze() when opening the FITS files.
+# todo check type annotations to see if I can make them simpler.
 
 
 
@@ -142,7 +140,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         self._data = data
         self._sigma = sigma
-        self._kernel = kernel
+        self._kernel = (kernel,) * data.ndim if isinstance(kernel, int) else kernel
         self._borders = borders
         self._threads = threads
         self._masked_array = masked_array
@@ -150,12 +148,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         self._sigma_lower = sigma_lower if sigma_lower is not None else sigma
         self._sigma_upper = sigma_upper if sigma_upper is not None else sigma
         self._max_iters = cast(int, max_iters if max_iters is not None else np.inf)
-
-        # PADDING setup
-        padding_settings = self._get_padding()
-        self._padding_mode = padding_settings['mode']
-        self._padding_reflect_type = padding_settings.get('reflect', 'even')
-        self._padding_constant_values = padding_settings.get('constant_values', 0.)
 
         # CHECKs
         self._kernel_dim = self._check_kernel()
@@ -178,35 +170,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         """
         return self._sigma_clipped
 
-    def _get_padding(self) -> dict[str, Any]:
-        """
-        To get the corresponding np.pad parameters given the border type.
-        """
-
-        if self._borders is None:
-            # ADAPTATIVE borders
-            result = {
-                'mode': 'constant',
-                'constant_values': np.nan,
-            }
-        elif self._borders == 'reflect':
-            result = {
-                'mode': 'symmetric',
-                'reflect': 'even',
-            }
-        elif self._borders == 'constant':
-            result = {
-                'mode': 'constant',
-                'constant_values': 0.,
-            }
-        elif self._borders == 'replicate':
-            result = {'mode': 'edge'}
-        elif self._borders == 'wrap':
-            result = {'mode': 'wrap'}
-        else:
-            raise ValueError(f"Unknown border type: {self._borders}")
-        return result
-
     def _check_kernel(self) -> int:
         """
         Checks input kernel size validity.
@@ -214,12 +177,12 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         Raises:
             ValueError: if any kernel dimension is even.
             TypeError: if the kernel is not an int, tuple of ints or a numpy ndarray.
+
+        Returns:
+            int: the kernel dimensionality.
         """
 
-        if isinstance(self._kernel, int):
-            if self._kernel % 2 == 0: raise ValueError("Kernel size must be odd.")
-            return self._data.ndim
-        elif isinstance(self._kernel, tuple):
+        if isinstance(self._kernel, tuple):
             if any(k % 2 == 0 for k in self._kernel):
                 raise ValueError("All kernel dimensions must be odd.")
             return len(self._kernel)
@@ -260,7 +223,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         output = self._data.copy()
 
         # TYPE CHECKER complains
-        centers = np.empty(0, dtype=self._data.dtype)
+        mode = np.empty(0, dtype=self._data.dtype)
         self._borders = cast(BorderType, self._borders)
 
         # COUNTs
@@ -271,7 +234,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         while (changed is True) and (iterations < self._max_iters):
 
             # CENTERs and STDDEVs
-            centers = self._get_center(output)
+            mode = self._get_mode(output)
             std_devs = FastStandardDeviation(
                 data=output,
                 kernel=self._kernel,
@@ -280,7 +243,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 threads=self._threads,
             ).sdev
 
-            diffs = output - centers
+            diffs = output - mode
             lower = diffs < - self._sigma_lower * std_devs
             upper = diffs > self._sigma_upper * std_devs
             new_mask = lower | upper
@@ -292,149 +255,43 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         # FILTER NaNs
         isnan = np.isnan(output)
-        output[isnan] = centers[isnan]
+        output[isnan] = mode[isnan]
         if self._masked_array: return cast(Output, ma.masked_array(output, mask=isnan))
         return cast(Output, output)
 
-    def _get_center(self, data: np.ndarray) -> np.ndarray:
+    def _get_mode(self, data: np.ndarray) -> np.ndarray:
         """
-        To get the sliding median of 'data' given a kernel size.
+        To get the sliding mode (mean or median) of 'data' given the kernel.
 
         Args:
-            data (np.ndarray): the data to get the sliding median for.
+            data (np.ndarray): the data to get the sliding mode for.
+
+        Raises:
+            ValueError: if the center choice is unknown.
 
         Returns:
-            np.ndarray: the sliding median result.
+            np.ndarray: the sliding mode result.
         """
 
-        if isinstance(self._kernel, (int, tuple)):
-            return self._get_center_int_tuple(data)
+        if self._center_choice == 'mean':
+            if isinstance(self._kernel, tuple):
+                kernel = np.ones(self._kernel, dtype=data.dtype)
+            else:
+                kernel = self._kernel
+            mean = SlidingMean(
+                data=data,
+                kernel=kernel,
+                borders=self._borders,#type: ignore
+                threads=self._threads,
+            ).mean
+            return mean
+        elif self._center_choice == 'median':
+            median = SlidingMedian(
+                data=data,
+                kernel=self._kernel,
+                borders=self._borders,#type: ignore
+                threads=self._threads,
+            ).median
+            return median
         else:
-            return self._get_center_custom(data)
-
-    def _get_center_int_tuple(self, data: np.ndarray) -> np.ndarray:
-        """
-        To get the sliding mean of 'data' given a kernel size.
-        The kernel value must be an int or a tuple of integers.
-
-        Args:
-            data (np.ndarray): the data to get the sliding mean for.
-
-        Returns:
-            np.ndarray: the sliding mean result.
-        """
-
-        # TYPE CHECKER complains
-        kernel = cast(int | tuple[int, ...], self._kernel)  # for the type checker
-
-        # KERNEL setup
-        if isinstance(kernel, int): kernel = cast(tuple[int, ...], (kernel,) * self._kernel_dim)
-
-        # MEAN
-        if self._center_choice == 'mean': 
-            return self._get_mean(data=data, kernel=np.ones(kernel, dtype=data.dtype))
-
-        # MEDIAN
-        pad = tuple((k // 2, k // 2) for k in kernel)
-        padded = self._add_padding(data, pad)
-
-        # MEDIAN choice
-        if self._kernel_dim == 3: return tuple_sliding_nanmedian_3d(padded, kernel)#type:ignore
-        return tuple_sliding_nanmedian_nd(padded, kernel)
-
-    def _get_center_custom(self, data: np.ndarray) -> np.ndarray:
-        """
-        To get the sliding mean of 'data' given a kernel size.
-        The kernel value must be a numpy ndarray.
-
-        Args:
-            data (np.ndarray): the data to get the sliding mean for.
-
-        Returns:
-            np.ndarray: the sliding mean result.
-        """
-
-        # TYPE CHECKER complains
-        kernel = cast(np.ndarray, self._kernel)  # for the type checker
-
-        # MEAN
-        if self._center_choice == 'mean': return self._get_mean(data, kernel)
-
-        # MEDIAN
-        pad = tuple((k // 2, k // 2) for k in kernel.shape)
-        padded = self._add_padding(data, pad)
-
-        # MEDIAN choice
-        # todo add an efficient 2D
-        if self._kernel_dim == 3: return sliding_weighted_median_3d(padded, kernel)
-        return sliding_weighted_median_nd(padded, kernel)
-
-    def _get_mean(self, data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-        """
-        Gives the sliding mean given the data and a kernel.
-
-        Args:
-            data (np.ndarray): the data to get the sliding mean for.
-            kernel (np.ndarray): the kernel to use for the sliding mean.
-
-        Returns:
-            np.ndarray: the sliding mean result.
-        """
-
-        # TYPE CHECKER complains
-        self._borders = cast(BorderType, self._borders)
-
-        # NaN handling
-        valid_mask = ~np.isnan(data)
-        data_filled = np.where(valid_mask, data, 0.).astype(data.dtype)  # ? needed ?
-
-        # SUM n MEAN
-        sum_values = Convolution(
-            data=data_filled,
-            kernel=kernel,
-            borders=self._borders,
-            threads=self._threads,
-        ).result
-        count = Convolution(
-            data=valid_mask.astype(data.dtype),
-            kernel=np.ones(kernel.shape, dtype=data.dtype),  # no weights used here
-            borders=self._borders,
-            threads=self._threads,
-        ).result
-        with np.errstate(divide='ignore', invalid='ignore'):
-            mean = np.where(count > 0, sum_values / count, 0.0)
-        return mean
-
-    def _add_padding(self, data: np.ndarray, pad: tuple[tuple[int, int], ...]) -> np.ndarray:
-        """
-        To add padding to 'data' given the pad widths and the padding mode.
-
-        Args:
-            data (np.ndarray): the data to pad.
-            pad (tuple[tuple[int, int], ...]): the pad widths for each dimension.
-
-        Returns:
-            np.ndarray: the padded data.
-        """
-
-        if self._padding_mode == 'constant':
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], self._padding_mode),
-                constant_values=self._padding_constant_values,
-            )
-        elif self._padding_mode in ['reflect', 'symmetric']:  # ! cannot be reflect any more
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], self._padding_mode),
-                reflect_type=cast(Literal['even'], self._padding_reflect_type),
-            )
-        else:
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], self._padding_mode),
-            )
-        return padded
+            raise ValueError(f"Unknown center choice: {self._center_choice}")

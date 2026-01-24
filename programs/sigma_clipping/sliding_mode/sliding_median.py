@@ -159,7 +159,7 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
                 mode=cast(Literal['edge'], padding_mode),
                 constant_values=padding_constant_values,
             )
-        elif padding_mode in ['reflect', 'symmetric']:
+        elif padding_mode == 'symmetric':
             padded = np.pad(
                 array=self._data,
                 pad_width=pad,

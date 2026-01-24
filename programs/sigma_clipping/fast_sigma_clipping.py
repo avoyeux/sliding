@@ -32,7 +32,7 @@ __all__ = ["FastSigmaClipping"]
 
 class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     """
-    To do a sliding sigma clip of an input array with a given kernel.
+    For a sliding sigma clip of an input array with a given kernel.
     Use the 'results' property to get the sigma clipped array.
     ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
     ! (when the kernel is given as an ndarray or a tuple of ints).
@@ -259,7 +259,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         output = self._data.copy()
 
         # TYPE CHECKER complains
-        centers = np.empty(0)
+        centers = np.empty(0, dtype=self._data.dtype)
         self._borders = cast(BorderType, self._borders)
 
         # COUNTs
@@ -385,7 +385,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
         # NaN handling
         valid_mask = ~np.isnan(data)
-        data_filled = np.where(valid_mask, data, 0.)
+        data_filled = np.where(valid_mask, data, 0.).astype(data.dtype)  # ? needed ?
 
         # SUM n MEAN
         sum_values = Convolution(
@@ -396,7 +396,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         ).result
         count = Convolution(
             data=valid_mask.astype(data.dtype),
-            kernel=np.ones(kernel.shape, dtype=data.dtype),
+            kernel=np.ones(kernel.shape, dtype=data.dtype),  # no weights used here
             borders=self._borders,
             threads=self._threads,
         ).result

@@ -12,12 +12,7 @@ import pytest
 
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
-from programs.standard_deviation import Convolution
-from programs.sigma_clipping.numba_functions import (
-    tuple_sliding_nanmedian_3d, sliding_weighted_median_3d,
-    tuple_sliding_nanmedian_nd, sliding_weighted_median_nd,
-)
-from programs.sliding_mode.sliding_mean import SlidingMean
+from programs.sigma_clipping import SlidingMean, SlidingMedian
 
 # TYPE ANNOTATIONs
 import queue
@@ -42,7 +37,7 @@ class TestMeanMedian:
         print(f"Found {len(filepaths)} FITs files for testing mean and median.")
         return filepaths
 
-    def test_mean(  # * passes completely even with nan values
+    def test_mean(
             self,
             filepaths: list[str],
         ) -> None:
@@ -58,24 +53,24 @@ class TestMeanMedian:
             target=self._run_mean_test,
         )
 
-    # def test_median_array(  # ! fails completely with nan values
-    #         self,
-    #         filepaths: list[str],
-    #     ) -> None:
-    #     """
-    #     Running tests on the new and old median implementations when the kernel is a numpy array
-    #     (used when needing to add weights).
+    def test_median_array(
+            self,
+            filepaths: list[str],
+        ) -> None:
+        """
+        Running tests on the new and old median implementations when the kernel is a numpy array
+        (used when needing to add weights).
 
-    #     Args:
-    #         filepaths (list[str]): the FITS filepaths to run the tests for.
-    #     """
+        Args:
+            filepaths (list[str]): the FITS filepaths to run the tests for.
+        """
 
-    #     TestUtils.multiprocess(
-    #         filepaths=filepaths,
-    #         target=self._run_median_array_test,
-    #     )
+        TestUtils.multiprocess(
+            filepaths=filepaths,
+            target=self._run_median_array_test,
+        )
 
-    def test_median_tuple(  # * passes completely even with nan values
+    def test_median_tuple(
             self,
             filepaths: list[str],
         ) -> None:
@@ -127,12 +122,7 @@ class TestMeanMedian:
                 kernel=kernel,
                 borders='reflect',
                 threads=1,
-            ).sliding_mean()
-            # new_mean = TestMeanMedian._new_mean_implementation(
-            #     data=data,
-            #     kernel=kernel,
-            #     borders='reflect',
-            # )
+            ).mean
 
             # Comparison
             comparison_log = TestUtils.compare(
@@ -173,11 +163,12 @@ class TestMeanMedian:
 
             # NEW median
             kernel = np.ones(kernel_size, dtype=data.dtype)
-            new_median = TestMeanMedian._new_median_array_implementation(
+            new_median = SlidingMedian(
                 data=data,
                 kernel=kernel,
                 borders='reflect',
-            )
+                threads=1,
+            ).median
 
             # Comparison
             comparison_log = TestUtils.compare(
@@ -217,11 +208,12 @@ class TestMeanMedian:
             )
 
             # NEW median
-            new_median = TestMeanMedian._new_median_tuple_implementation(
+            new_median = SlidingMedian(
                 data=data,
                 kernel=kernel_size,
                 borders='reflect',
-            )
+                threads=1,
+            ).median
 
             # Comparison
             comparison_log = TestUtils.compare(
@@ -230,92 +222,3 @@ class TestMeanMedian:
                 filepath=filepath,
             )
             result_queue.put(comparison_log)
-
-    # @staticmethod
-    # def _new_mean_implementation(
-    #         data: np.ndarray,
-    #         kernel: np.ndarray,
-    #         borders: str | None,
-    #     ) -> np.ndarray:
-    #     """
-    #     The new mean implementation used in the new sigma clipping method.
-
-    #     Args:
-    #         data (np.ndarray): the data to get the sliding mean for.
-    #         kernel (np.ndarray): the kernel for the sliding mean.
-    #         borders (str | None): the border type.
-
-    #     Returns:
-    #         np.ndarray: the sliding mean result.
-    #     """
-
-    #     # NaN handling
-    #     valid_mask = ~np.isnan(data)
-    #     data_filled = np.where(valid_mask, data, np.float32(0.))
-
-    #     # SUM n MEAN
-    #     sum_values = Convolution(
-    #         data=data_filled,
-    #         kernel=kernel,
-    #         borders=borders,#type:ignore
-    #         threads=1,
-    #     ).result
-    #     count = Convolution(
-    #         data=valid_mask.astype(data.dtype),
-    #         kernel=np.ones(kernel.shape, dtype=data.dtype),
-    #         borders=borders,#type:ignore
-    #         threads=1,
-    #     ).result
-    #     with np.errstate(divide='ignore', invalid='ignore'):
-    #         mean = np.where(count > 0, sum_values / count, np.float32(0.))
-    #     return mean
-
-    @staticmethod
-    def _new_median_array_implementation(
-            data: np.ndarray,
-            kernel: np.ndarray,
-            borders: str | None,
-        ) -> np.ndarray:
-        """
-        The new median implementation when the kernel has weights.
-
-        Args:
-            data (np.ndarray): the data to get the sliding median for.
-            kernel (np.ndarray): the weighted kernel for the sliding median.
-            borders (str | None): the border type.
-
-        Returns:
-            np.ndarray: the sliding median result.
-        """
-
-        pad = tuple((k // 2, k // 2) for k in kernel.shape)
-        padded = TestUtils.add_padding(borders, data, pad)
-
-        if kernel.ndim == 3: return sliding_weighted_median_3d(padded, kernel)
-        return sliding_weighted_median_nd(padded, kernel)
-
-    @staticmethod
-    def _new_median_tuple_implementation(
-            data: np.ndarray,
-            kernel: tuple[int, ...],
-            borders: str | None,
-        ) -> np.ndarray:
-        """
-        The new median implementation when the kernel doesn't have weights.
-
-        Args:
-            data (np.ndarray): the data to get the sliding median for.
-            kernel (tuple[int, ...]): the kernel for the sliding median.
-            borders (str | None): the border type.
-
-        Returns:
-            np.ndarray: the sliding median result.
-        """
-
-        # MEDIAN
-        pad = tuple((k // 2, k // 2) for k in kernel)
-        padded = TestUtils.add_padding(borders, data, pad)
-
-        # MEDIAN choice
-        if len(kernel) == 3: return tuple_sliding_nanmedian_3d(padded, kernel)#type:ignore
-        return tuple_sliding_nanmedian_nd(padded, kernel)

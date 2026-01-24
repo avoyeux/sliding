@@ -32,8 +32,8 @@ class TestUtils:
     Utility functions that can be used in different tests.
     """
 
-    ADD_NANS: bool = False
-    NB_PROCESSES: int = 20
+    ADD_NANS: bool = True
+    NB_PROCESSES: int = 32
     COMPARE_NANS: bool = False
 
     @staticmethod
@@ -46,9 +46,9 @@ class TestUtils:
         """
 
         fits_files = glob.glob(
-            '/home/avoyeux/Documents/work_codes/sigma_clipping_tests/results/*L1*.fits'
+            '/home/voyeux-alfred/Documents/work_codes/sigma_clipping_tests/results/*L1*.fits'
         )
-        return fits_files[:40]
+        return fits_files[:64]
 
     @staticmethod
     def open_file(filepath: str) -> np.ndarray[tuple[int, ...], np.dtype[np.float32]] | dict:
@@ -65,7 +65,7 @@ class TestUtils:
 
         try:
             hdul = fits.open(filepath)
-            data = hdul[0].data.astype(np.float64).squeeze()#type: ignore
+            data = hdul[0].data.astype(np.float32).squeeze()#type: ignore
             hdul.close()
             if TestUtils.ADD_NANS: data = TestUtils._add_nans(data, fraction=0.05)
             return data

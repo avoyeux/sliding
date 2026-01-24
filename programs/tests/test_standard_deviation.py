@@ -8,7 +8,7 @@ import pytest
 
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
-from programs.standard_deviation import FastStandardDeviation
+from programs.sigma_clipping import FastStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue

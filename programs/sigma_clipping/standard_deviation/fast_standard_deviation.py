@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 
 # IMPORTs local
-from programs.standard_deviation.convolution import Convolution, BorderType
+from programs.sigma_clipping.convolution import Convolution, BorderType
 
 # API public
 __all__ = ["FastStandardDeviation"]

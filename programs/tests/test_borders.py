@@ -11,7 +11,7 @@ import numpy as np
 
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
-from programs.standard_deviation import Convolution
+from programs.sigma_clipping import Convolution
 from programs.tests.sliding_mean import sliding_weighted_mean_3d
 
 # TYPE ANNOTATIONs

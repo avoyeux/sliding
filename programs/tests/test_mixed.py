@@ -11,10 +11,9 @@ import pytest
 import numpy as np
 
 # IMPORTs local
-from programs.sigma_clipping import sigma_clip
 from programs.tests.utils_tests import TestUtils
-from programs.standard_deviation import FastStandardDeviation, Convolution
-from programs.sigma_clipping.numba_functions import (
+from programs.sigma_clipping import FastStandardDeviation, Convolution, sigma_clip
+from programs.sigma_clipping.sliding_mode.numba_functions import (
     tuple_sliding_nanmedian_3d, tuple_sliding_nanmedian_nd,
 )
 

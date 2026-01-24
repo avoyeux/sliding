@@ -11,8 +11,9 @@ from numpy import ma
 from numba import set_num_threads
 
 # IMPORTs local
-from programs.standard_deviation import BorderType, Convolution, FastStandardDeviation
-from programs.sigma_clipping.numba_functions import (
+from programs.sigma_clipping.convolution import BorderType, Convolution
+from programs.sigma_clipping.standard_deviation import FastStandardDeviation
+from programs.sigma_clipping.sliding_mode.numba_functions import (
     tuple_sliding_nanmedian_3d, sliding_weighted_median_3d,
     tuple_sliding_nanmedian_nd, sliding_weighted_median_nd,
 )

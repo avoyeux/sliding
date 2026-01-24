@@ -8,19 +8,22 @@ import numpy as np
 import numpy.typing as npt
 
 # IMPORTs local
-from programs.standard_deviation import BorderType, Convolution  # ! need to change the path to this code
+from programs.sigma_clipping.convolution import BorderType, Convolution
 
 # TYPE ANNOTATIONs
-from typing import cast
+from typing import cast, Any
+from collections.abc import Sequence
 type Array[D: np.floating] = npt.NDArray[D]
-type ArrayLike[D: np.floating] = Array[D] | list[Array[D]]
+type ArrayLike[D: np.floating] = Array[D] | Sequence[Array[D]]
 
 # API public
 __all__ = ["SlidingMean"]
 
+# todo need to improve the code so useless convolutions (when no NaN) are not done
 
 
-class SlidingMean[Data: ArrayLike]:
+
+class SlidingMean[Data: ArrayLike[np.floating[Any]]]:
     """
     To compute the sliding mean of a given ndarray data and kernel.
     The inputs need to be of float32 or float64 type.
@@ -36,7 +39,7 @@ class SlidingMean[Data: ArrayLike]:
         """
         Computes the sliding mean of a given ndarray data and kernel.
         Weights can be used inside the kernel and the input data can have np.nan values.
-        To access the sliding mean result, use the `sliding_mean` property.
+        To access the sliding mean result, use the `mean` property.
         When the input data is given as a list of arrays, is it supposed that the positions of
         np.nan are the same for all arrays. Furthermore, the kernel used remains the same for all
         arrays.
@@ -54,7 +57,7 @@ class SlidingMean[Data: ArrayLike]:
                 If None, doesn't change change the default behaviour. Defaults to 1.
         """
 
-        self._data = cast(list[Array], data if isinstance(data, list) else [data])
+        self._data = cast(Data, data if isinstance(data, list) else [data])
         self._kernel = kernel
         self._borders = borders
         self._threads = threads
@@ -63,7 +66,7 @@ class SlidingMean[Data: ArrayLike]:
         self._mean = self._sliding_mean()
 
     @property
-    def sliding_mean(self) -> Data:
+    def mean(self) -> Data:
         """
         Gives the sliding mean results.
         Keep in mind that, if the input data was a list of arrays, then the results is also a list
@@ -139,7 +142,7 @@ class SlidingMean[Data: ArrayLike]:
                 threads=self._threads,
             ).result
             with np.errstate(divide='ignore', invalid='ignore'):
-                means[i] = np.where(count > 0, sum_values / count, 0.0).astype(data.dtype)
+                means[i] = np.where(count > 0, sum_values / count, 0.0).astype(data.dtype)#type:ignore
         return means
 
 
@@ -152,4 +155,4 @@ if __name__ == "__main__":
         borders='reflect',
         threads=1,
     )
-    mean = instance.sliding_mean
+    mean = instance.mean

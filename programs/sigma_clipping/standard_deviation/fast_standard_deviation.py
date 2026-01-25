@@ -14,22 +14,23 @@ from numpy.lib.stride_tricks import sliding_window_view
 from programs.sigma_clipping.convolution import BorderType, Padding
 
 # TYPE ANNOTATIONs
-from typing import cast
+import numpy.typing as npt
+from typing import cast, Any
 
 # API public
 __all__ = ["FastStandardDeviation"]
 
 
 
-class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
+class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
     """
     To compute the moving sample standard deviations using convolutions.
     """
 
     def __init__(
             self,
-            data: Data,
-            kernel: int | tuple[int, ...] | Data,
+            data: Array,
+            kernel: int | tuple[int, ...] | Array,
             borders: BorderType = 'reflect',
             threads: int | None = 1,
         ) -> None:
@@ -44,10 +45,10 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
         ! (when the kernel is given as an ndarray or a tuple of ints).
 
         Args:
-            data (Data): the data for which the moving sample standard deviations are computed.
+            data (Array): the data for which the moving sample standard deviations are computed.
                 Needs to be a numpy ndarray of the same floating type than the kernel (if given as
                 a numpy ndarray).
-            kernel (int, tuple[int, ...] | Data): the kernel information. If an int, you have a
+            kernel (int, tuple[int, ...] | Array): the kernel information. If an int, you have a
                 'square' kernel. If a tuple, you are deciding on the shape of the kernel. If a
                 numpy ndarray, you are giving the full kernel (can contain different weights). Keep
                 in mind that the kernel should have the same dimensions and dtype as the data.
@@ -72,7 +73,7 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
         self._sdev = self._sdev_loc()
 
     @property
-    def sdev(self) -> Data:
+    def sdev(self) -> Array:
         """
         Returns the moving sample standard deviations.
 
@@ -126,15 +127,22 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
                 "'kernel' must be an int, a tuple of ints, or a numpy ndarray."
             )
 
-    def _sdev_loc(self) -> Data:
+    def _sdev_loc(self) -> Array:
         """
-        Computes the sliding standard deviation using the Welford Formula.
+        Computes the sliding standard deviation using the same equation than in Welford.
 
-        Returns:
-            Data: the sliding standard deviation.
+        Operation done is basically:
+        * n = len(data)
+        * mean = sum(data) / n
+        * variance = sum((x - mean) ** 2 for x in data) / (n - 1)
+        * std = sqrt(variance)
+        Of course, computations are done using arrays and sliding windows to do the 'for x in data'
+        part as data is defined by a kernel / is a window.
+        Furthermore, conditional operations are added to take care of NaN values in the data (or 
+        from the padding).
+        The memory usage is basically as low as possible when wanting to do all operations at once
+        (still high because need at least one full sliding window view buffer needs to be used).
         """
-
-        axis = tuple(range(self._data.ndim))
 
         # PAD data
         padded = Padding(
@@ -145,9 +153,10 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
 
         # NaN handling
         valid = ~np.isnan(padded)
-        arr_filled = np.where(valid, padded, 0.).astype(self._data.dtype)
+        arr_filled = np.where(valid, padded, 0.0).astype(self._data.dtype)
 
-        # SLIDING WINDOWS
+        # VIEWs of the convolution space
+        axis = tuple(range(self._data.ndim))
         windows = sliding_window_view(
             x=arr_filled,
             window_shape=self._kernel.shape,
@@ -159,23 +168,103 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
             axis=axis,#type:ignore
         )
 
-        # COUNT weighted (sum of weights for valid entries)
+        # BUFFER window-shaped intermediates (huge memory usage)
+        buffer = np.empty(windows.shape, dtype=self._data.dtype)
+
         kernel_axes = tuple(range(-len(axis), 0))
-        kernel_sum = (valid_windows * self._kernel).sum(axis=kernel_axes)
+        uniform_kernel = np.allclose(self._kernel, self._kernel.flat[0])
+        if uniform_kernel:
+            # NO WEIGHTs
+            # COUNT of valid data
+            buffer[...] = valid_windows
+            count = buffer.sum(axis=kernel_axes)
 
-        # MEAN weighted
-        sum_vals = (windows * self._kernel).sum(axis=kernel_axes)
+            # SUM sliding without NaNs
+            np.copyto(buffer, windows)
+            sum_sliding = buffer.sum(axis=kernel_axes)
+        else:
+            # COUNT valid data weighted
+            np.multiply(valid_windows, self._kernel, out=buffer)
+            count = buffer.sum(axis=kernel_axes)
+
+            # WEIGHTED SUM sliding without NaNs
+            np.multiply(windows, self._kernel, out=buffer)
+            sum_sliding = buffer.sum(axis=kernel_axes)
+
+        # MEAN sliding
         with np.errstate(divide="ignore", invalid="ignore"):
-            mean = np.where(kernel_sum > 0, sum_vals / kernel_sum, 0.0).astype(self._data.dtype)
+            mean = np.where(count > 0, sum_sliding / count, 0.0).astype(self._data.dtype)
 
-        # STD weighted
-        diff = np.where(valid_windows, windows - np.expand_dims(mean, axis=kernel_axes), 0.0)
-        M2 = (diff**2 * self._kernel).sum(axis=kernel_axes)
+        # VARIANCE windows
+        mean_expanded = np.expand_dims(mean, axis=kernel_axes)
+        np.subtract(windows, mean_expanded, out=buffer)
+
+        # NaN handling
+        buffer[~valid_windows] = 0.
+
+        # DIFF**2 windows
+        np.square(buffer, out=buffer)
+        if not uniform_kernel: np.multiply(buffer, self._kernel, out=buffer)
+
+        # SUM final
+        M2 = buffer.sum(axis=kernel_axes)
+
+        # STD 
         with np.errstate(divide="ignore", invalid="ignore"):
-            std = np.where(kernel_sum > 0, np.sqrt(M2 / kernel_sum), 0.0).astype(self._data.dtype)
-        return cast(Data, std)
+            std = np.where(count > 0, np.sqrt(M2 / count), 0.0).astype(self._data.dtype)
+        return cast(Array, std)
 
-    # def _sdev_loc_old(self) -> Data:  # ! problems with low values
+    # def _sdev_loc(self) -> Array:
+    #      # ! same values as generic filter but chosen method should be more stable 
+    #     """
+    #     Computes the sliding standard deviation using the Welford Formula.
+
+    #     Returns:
+    #         Array: the sliding standard deviation.
+    #     """
+
+    #     axis = tuple(range(self._data.ndim))
+
+    #     # PAD data
+    #     padded = Padding(
+    #         data=self._data,
+    #         kernel=self._kernel.shape,
+    #         borders=self._borders,#type:ignore
+    #     ).padded
+
+    #     # NaN handling
+    #     valid = ~np.isnan(padded)
+    #     arr_filled = np.where(valid, padded, 0.).astype(self._data.dtype)
+
+    #     # SLIDING WINDOWS
+    #     windows = sliding_window_view(
+    #         x=arr_filled,
+    #         window_shape=self._kernel.shape,
+    #         axis=axis,#type:ignore
+    #     )
+    #     valid_windows = sliding_window_view(  # ? not needed when no NaNs or needed for borders?
+    #         x=valid,
+    #         window_shape=self._kernel.shape,
+    #         axis=axis,#type:ignore
+    #     )
+
+    #     # COUNT weighted (sum of weights for valid entries)
+    #     kernel_axes = tuple(range(-len(axis), 0))
+    #     kernel_sum = (valid_windows * self._kernel).sum(axis=kernel_axes)
+
+    #     # MEAN weighted
+    #     sum_vals = (windows * self._kernel).sum(axis=kernel_axes)
+    #     with np.errstate(divide="ignore", invalid="ignore"):
+    #         mean = np.where(kernel_sum > 0, sum_vals / kernel_sum, 0.0).astype(self._data.dtype)
+
+    #     # STD weighted
+    #     diff = np.where(valid_windows, windows - np.expand_dims(mean, axis=kernel_axes), 0.0)
+    #     M2 = (diff**2 * self._kernel).sum(axis=kernel_axes)
+    #     with np.errstate(divide="ignore", invalid="ignore"):
+    #         std = np.where(kernel_sum > 0, np.sqrt(M2 / kernel_sum), 0.0).astype(self._data.dtype)
+    #     return cast(Array, std)
+
+    # def _sdev_loc_old(self) -> Array:  # ! problems with low values
     #     """
     #     Computes the moving sample standard deviations. The size of each sample is defined by the
     #     kernel (square with a length of 'size').

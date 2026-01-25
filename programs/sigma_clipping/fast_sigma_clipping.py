@@ -239,7 +239,6 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 data=output,
                 kernel=self._kernel,
                 borders=self._borders,
-                with_NaNs=True,
                 threads=self._threads,
             ).sdev
 

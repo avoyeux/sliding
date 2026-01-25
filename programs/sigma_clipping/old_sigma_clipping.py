@@ -88,13 +88,8 @@ def sigma_clip[T: np.ndarray](
     center = np.empty(0)
     while n_changed != 0 and (iteration < max_iters):
         iteration += 1
-        start = time.time()
         center = generic_filter(output, _get_numpy_function(output, center_func), size)
-        end = time.time()
         stddev = generic_filter(output, _get_numpy_function(output, "std"), size)
-        end2 = time.time()
-        print(f"{iteration} Center: {end - start:.2f} s")
-        print(f"{iteration} Stddev: {end2 - end:.2f} s")
         diff = output - center
         new_mask = (diff > sigma_upper * stddev) | (diff < -sigma_lower * stddev)
         output[new_mask] = np.nan

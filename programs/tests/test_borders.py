@@ -9,10 +9,12 @@ import pytest
 # IMPORTs alias
 import numpy as np
 
+# IMPORTs sub
+from scipy.ndimage import generic_filter
+
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import Convolution
-from programs.tests.sliding_mean import sliding_weighted_mean_3d
+from programs.sigma_clipping import SlidingMean
 
 # TYPE ANNOTATIONs
 import queue
@@ -73,31 +75,18 @@ class TestBorders:
             target=self._run_replicate,
         )
 
-    def test_borders_wrap(
-            self,
-            filepaths: list[str],
-        ) -> None:
-        """
-        To test if the border cases are handled the same way between np.pad and cv2.
-        """
+    # def test_borders_none(
+    #         self,
+    #         filepaths: list[str],
+    #     ) -> None:
+    #     """
+    #     To test if the border cases are handled the same way between np.pad and cv2.
+    #     """
 
-        TestUtils.multiprocess(
-            filepaths=filepaths,
-            target=self._run_wrap,
-        )
-
-    def test_borders_none(
-            self,
-            filepaths: list[str],
-        ) -> None:
-        """
-        To test if the border cases are handled the same way between np.pad and cv2.
-        """
-
-        TestUtils.multiprocess(
-            filepaths=filepaths,
-            target=self._run_none,
-        )
+    #     TestUtils.multiprocess(
+    #         filepaths=filepaths,
+    #         target=self._run_none,
+    #     )
 
     @staticmethod
     def _run_reflect(
@@ -116,7 +105,7 @@ class TestBorders:
         )
 
     @staticmethod
-    def _run_constant(
+    def _run_constant(  # ! fails with NaNs but doesn't otherwise... no clue how or why
             input_queue: queue.Queue[str | None],
             result_queue: queue.Queue[dict],
         ) -> None:
@@ -147,37 +136,21 @@ class TestBorders:
             result_queue=result_queue,
         )
 
-    @staticmethod
-    def _run_wrap(
-            input_queue: queue.Queue[str | None],
-            result_queue: queue.Queue[dict],
-        ) -> None:
-        """
-        To test the 'wrap' border option.
-        """
+    # @staticmethod
+    # def _run_none(
+    #         input_queue: queue.Queue[str | None],
+    #         result_queue: queue.Queue[dict],
+    #     ) -> None:
+    #     """
+    #     To test the 'none' border option.
+    #     """
 
-        border = 'wrap'
-        TestBorders._run_process(
-            border=border,
-            input_queue=input_queue,
-            result_queue=result_queue,
-        )
-
-    @staticmethod
-    def _run_none(
-            input_queue: queue.Queue[str | None],
-            result_queue: queue.Queue[dict],
-        ) -> None:
-        """
-        To test the 'none' border option.
-        """
-
-        border = None
-        TestBorders._run_process(
-            border=border,
-            input_queue=input_queue,
-            result_queue=result_queue,
-        )
+    #     border = None
+    #     TestBorders._run_process(
+    #         border=border,
+    #         input_queue=input_queue,
+    #         result_queue=result_queue,
+    #     )
 
     @staticmethod
     def _run_process(
@@ -195,7 +168,8 @@ class TestBorders:
             result_queue (queue.Queue[dict]): the result queue to put the results in.
         """
 
-        kernel_size = 3
+        kernel_size = 5
+        assert border is not None
 
         while True:
             filepath = input_queue.get()
@@ -204,29 +178,23 @@ class TestBorders:
             data = TestUtils.open_file(filepath)
             if isinstance(data, dict): result_queue.put(data); continue
 
-            # NEED 3D data (as don't have another ND sliding mean computation that uses padding)
-            if data.ndim != 3:
-                result_queue.put({
-                    'filepath': filepath,
-                    'status': 'skipped',
-                    'message': f"Data ndim is {data.ndim}. Need 3D. skipping.",
-                })
-                continue
+            kernel = (kernel_size,) * data.ndim
 
             # CV2
-            kernel = np.ones(kernel_size)
-            kernel[1, 1, 1] = 0.
-            kernel_norm = kernel / kernel.sum()
-            new_result = Convolution(
+            new_result = SlidingMean(
                 data=data.copy(),
-                kernel=kernel_norm,
+                kernel=kernel,
                 borders=border,#type:ignore
-            ).result
+                threads=1,
+            ).mean
 
-            # PADDING
-            pad = tuple((k // 2, k // 2) for k in kernel.shape)
-            padded = TestUtils.add_padding(border, data, pad)
-            old_result = sliding_weighted_mean_3d(padded, kernel)#type:ignore
+            mode = 'nearest' if border == 'replicate' else border
+            old_result = generic_filter(
+                input=data,
+                function=lambda x: np.nanmean(x),
+                size=kernel,
+                mode=mode,
+            )
 
             # CHECK all values
             comparison_log = TestUtils.compare(

@@ -20,7 +20,7 @@ from scipy.ndimage import generic_filter
 
 # TYPE ANNOTATIONs
 import queue
-from typing import cast, Literal, Callable
+from typing import cast, Callable
 
 # API public
 __all__ = ['TestUtils']
@@ -34,7 +34,7 @@ class TestUtils:
 
     ADD_NANS: bool = True
     NB_PROCESSES: int = 32
-    COMPARE_NANS: bool = False
+    COMPARE_NANS: bool = True
 
     @staticmethod
     def get_filepaths() -> list[str]:
@@ -67,7 +67,7 @@ class TestUtils:
             hdul = fits.open(filepath)
             data = hdul[0].data.astype(np.float32).squeeze()#type: ignore
             hdul.close()
-            if TestUtils.ADD_NANS: data = TestUtils._add_nans(data, fraction=0.05)
+            if TestUtils.ADD_NANS: data = TestUtils._add_NaNs(data, fraction=0.05)
             return data
         except (FileNotFoundError, OSError, IOError) as e:
             log = {
@@ -79,7 +79,7 @@ class TestUtils:
             return log
 
     @staticmethod
-    def _add_nans(data: np.ndarray, fraction: float = 0.01) -> np.ndarray:
+    def _add_NaNs(data: np.ndarray, fraction: float = 0.01) -> np.ndarray:
         """
         To randomly add NaN values to the given data.
 
@@ -135,91 +135,6 @@ class TestUtils:
         return log
 
     @staticmethod
-    def _get_padding(borders: str | None) -> dict:
-        """
-        Gives a dictionary containing the padding choices given the border information.
-        Follows the same naming pattern than in the new sigma clipping implementation.
-
-        Args:
-            borders (str | None): the name of the border type.
-
-        Raises:
-            ValueError: if the border type name is not recognised.
-
-        Returns:
-            dict: the dictionary containing the padding choices.
-        """
-
-        if borders is None:
-            # ADAPTATIVE borders
-            result = {
-                'mode': 'constant',
-                'constant_values': np.nan,
-            }
-        elif borders == 'reflect':
-            result = {
-                'mode': 'symmetric',
-                'reflect': 'even',
-            }
-        elif borders == 'constant':
-            result = {
-                'mode': 'constant',
-                'constant_values': 0.,
-            }
-        elif borders == 'replicate':
-            result = {'mode': 'edge'}
-        elif borders == 'wrap':
-            result = {'mode': 'wrap'}
-        else:
-            raise ValueError(f"Unknown border type: {borders}")
-        return result
-
-    @staticmethod
-    def add_padding(
-            border: str | None,
-            data: np.ndarray,
-            pad: tuple[tuple[int, int], ...],
-        ) -> np.ndarray:
-        """
-        To add padding to the given data according to the given border type.
-
-        Args:
-            border (str | None): the border type.
-            data (np.ndarray): the data to pad.
-            pad (tuple[tuple[int, int], ...]): the pad widths for each dimension.
-
-        Returns:
-            np.ndarray: the padded data.
-        """
-
-        padding_params = TestUtils._get_padding(border)
-        padding_mode = padding_params['mode']
-        padding_constant_values = padding_params.get('constant_values', 0)
-        padding_reflect_type = padding_params.get('reflect', 'even')
-
-        if padding_mode == 'constant':
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], padding_mode),
-                constant_values=padding_constant_values,
-            )
-        elif padding_mode in ['reflect', 'symmetric']:
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], padding_mode),
-                reflect_type=cast(Literal['even'], padding_reflect_type),
-            )
-        else:
-            padded = np.pad(
-                array=data,
-                pad_width=pad,
-                mode=cast(Literal['edge'], padding_mode),
-            )
-        return padded
-
-    @staticmethod
     def multiprocess(
             filepaths: list[str],
             target: Callable[[queue.Queue[str | None], queue.Queue[dict]], None],
@@ -264,7 +179,7 @@ class TestUtils:
         results = []
         while not result_queue.empty():
             results.append(result_queue.get())
-        
+
         if len(results) != len(filepaths):
             pytest.fail(
                 f"Some files were not processed: "
@@ -301,7 +216,7 @@ class TestUtils:
                 name: str,
             ) -> Callable[..., np.ndarray | np.floating]:
             """
-            Get NaN-aware version of numpy array function if there are any NaNs in data
+            Get NaN-aware version of numpy array function if there are any NaNs in data.
             """
 
             if np.isnan(data).any(): name = "nan" + name

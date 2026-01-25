@@ -7,8 +7,14 @@ from __future__ import annotations
 # IMPORTs alias
 import numpy as np
 
+# IMPORTs sub
+from numpy.lib.stride_tricks import sliding_window_view
+
 # IMPORTs local
-from programs.sigma_clipping.convolution import Convolution, BorderType
+from programs.sigma_clipping.convolution import BorderType, Padding
+
+# TYPE ANNOTATIONs
+from typing import cast
 
 # API public
 __all__ = ["FastStandardDeviation"]
@@ -25,7 +31,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
             data: Data,
             kernel: int | tuple[int, ...] | Data,
             borders: BorderType = 'reflect',
-            with_NaNs: bool = True,
             threads: int | None = 1,
         ) -> None:
         """
@@ -34,6 +39,7 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
         mind that the standard deviation will take a little longer to compute (no approximation
         possible).
         To retrieve the computed standard deviations, use the 'sdev' property.
+        NaN handling is done.
         ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
         ! (when the kernel is given as an ndarray or a tuple of ints).
 
@@ -49,8 +55,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't have
                 the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
                 no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
-            with_NaNs (bool, optional): whether to handle NaNs in the data. More efficient to set
-                it to False. Defaults to True.
             threads (int | None, optional): the number of threads to use for the computation.
                 If None, doesn't change any thread values. Defaults to 1.
                 ! Might not work as expected given that numpy, numba and cv2 do not always let you
@@ -60,7 +64,6 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
         self._data = data
         self._borders = borders
         self._threads = threads
-        self._with_NaNs = with_NaNs
 
         # CHECK kernel
         self._kernel = self._check_kernel(kernel)
@@ -123,70 +126,119 @@ class FastStandardDeviation[Data: np.ndarray[tuple[int, ...], np.dtype[np.floati
                 "'kernel' must be an int, a tuple of ints, or a numpy ndarray."
             )
 
-    def _sdev_loc(self) -> Data:  # ! problems with low values
+    def _sdev_loc(self) -> Data:
         """
-        Computes the moving sample standard deviations. The size of each sample is defined by the
-        kernel (square with a length of 'size').
+        Computes the sliding standard deviation using the Welford Formula.
 
         Returns:
-            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample standard
-                deviations.
+            Data: the sliding standard deviation.
         """
 
-        if self._with_NaNs:
-            # INSTABILITY helper
-            global_median = np.nanmedian(self._data)
-            shifted_data = self._data - global_median
+        axis = tuple(range(self._data.ndim))
 
-            # VALID (non-NaN)
-            valid_mask = ~np.isnan(self._data)
-            data_filled = np.where(valid_mask, shifted_data, 0.).astype(self._data.dtype)
+        # PAD data
+        padded = Padding(
+            data=self._data,
+            kernel=self._kernel.shape,
+            borders=self._borders,#type:ignore
+        ).padded
 
-            # SUM n MEAN
-            sum_values = Convolution(
-                data=data_filled,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads
-            ).result
-            sum_squares = Convolution(
-                data=data_filled ** 2,#type:ignore
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            count = Convolution(
-                data=valid_mask.astype(self._data.dtype),
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            with np.errstate(divide='ignore', invalid='ignore'):
-                mean = np.where(count > 0, sum_values / count, 0.0)
-                mean_sq = np.where(count > 0, sum_squares / count, 0.0)
+        # NaN handling
+        valid = ~np.isnan(padded)
+        arr_filled = np.where(valid, padded, 0.).astype(self._data.dtype)
 
-            # STD
-            variance = mean_sq - mean ** 2
-            variance = np.maximum(variance, 0.0)
-            return np.sqrt(variance)#type:ignore
-        else:
-            # INSTABILITY helper
-            global_median = np.median(self._data)
-            shifted_data = self._data - global_median
+        # SLIDING WINDOWS
+        windows = sliding_window_view(
+            x=arr_filled,
+            window_shape=self._kernel.shape,
+            axis=axis,#type:ignore
+        )
+        valid_windows = sliding_window_view(
+            x=valid,
+            window_shape=self._kernel.shape,
+            axis=axis,#type:ignore
+        )
 
-            # STD
-            mean2 = Convolution(
-                data=shifted_data,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads
-            ).result ** 2
-            variance = Convolution(
-                data=shifted_data ** 2,
-                kernel=self._kernel,
-                borders=self._borders,#type:ignore
-                threads=self._threads,
-            ).result
-            variance -= mean2
-            variance = np.maximum(variance, 0.0)
-            return np.sqrt(variance)#type:ignore
+        # COUNT weighted (sum of weights for valid entries)
+        kernel_axes = tuple(range(-len(axis), 0))
+        kernel_sum = (valid_windows * self._kernel).sum(axis=kernel_axes)
+
+        # MEAN weighted
+        sum_vals = (windows * self._kernel).sum(axis=kernel_axes)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mean = np.where(kernel_sum > 0, sum_vals / kernel_sum, 0.0).astype(self._data.dtype)
+
+        # STD weighted
+        diff = np.where(valid_windows, windows - np.expand_dims(mean, axis=kernel_axes), 0.0)
+        M2 = (diff**2 * self._kernel).sum(axis=kernel_axes)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            std = np.where(kernel_sum > 0, np.sqrt(M2 / kernel_sum), 0.0).astype(self._data.dtype)
+        return cast(Data, std)
+
+    # def _sdev_loc_old(self) -> Data:  # ! problems with low values
+    #     """
+    #     Computes the moving sample standard deviations. The size of each sample is defined by the
+    #     kernel (square with a length of 'size').
+
+    #     Returns:
+    #         np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample standard
+    #             deviations.
+    #     """
+
+    #     if (nan_mask := np.isnan(self._data)).any():
+    #         # INSTABILITY helper
+    #         global_median = np.nanmedian(self._data)
+    #         shifted_data = self._data - global_median
+
+    #         # VALID (non-NaN)
+    #         valid_mask = ~nan_mask
+    #         data_filled = np.where(valid_mask, shifted_data, 0.).astype(self._data.dtype)
+
+    #         # SUM n MEAN
+    #         sum_values = Convolution(
+    #             data=data_filled,
+    #             kernel=self._kernel,
+    #             borders=self._borders,#type:ignore
+    #             threads=self._threads
+    #         ).result
+    #         sum_squares = Convolution(
+    #             data=data_filled ** 2,#type:ignore
+    #             kernel=self._kernel,
+    #             borders=self._borders,#type:ignore
+    #             threads=self._threads,
+    #         ).result
+    #         count = Convolution(
+    #             data=valid_mask.astype(self._data.dtype),
+    #             kernel=self._kernel,
+    #             borders=self._borders,#type:ignore
+    #             threads=self._threads,
+    #         ).result
+    #         with np.errstate(divide='ignore', invalid='ignore'):
+    #             mean = np.where(count > 0, sum_values / count, 0.0)
+    #             mean_sq = np.where(count > 0, sum_squares / count, 0.0)
+
+    #         # STD
+    #         variance = mean_sq - mean ** 2
+    #         variance = np.maximum(variance, 0.0)
+    #         return np.sqrt(variance)#type:ignore
+    #     else:
+    #         # INSTABILITY helper
+    #         global_median = np.median(self._data)
+    #         shifted_data = self._data - global_median
+
+    #         # STD
+    #         mean2 = Convolution(
+    #             data=shifted_data,
+    #             kernel=self._kernel,
+    #             borders=self._borders,#type:ignore
+    #             threads=self._threads
+    #         ).result ** 2
+    #         variance = Convolution(
+    #             data=shifted_data ** 2,
+    #             kernel=self._kernel,
+    #             borders=self._borders,#type:ignore
+    #             threads=self._threads,
+    #         ).result
+    #         variance -= mean2
+    #         variance = np.maximum(variance, 0.0)
+    #         return np.sqrt(variance)#type:ignore

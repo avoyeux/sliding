@@ -15,8 +15,7 @@ from scipy.ndimage import convolve
 from threadpoolctl import threadpool_limits
 
 # TYPE ANNOTATIONs
-from typing import Literal
-type BorderType = Literal['reflect', 'constant', 'replicate', 'wrap'] | None
+from programs.sigma_clipping.convolution.padding import BorderType
 
 # API public
 __all__ = ["Convolution"]
@@ -36,7 +35,6 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
         'reflect': cv2.BORDER_REFLECT,
         'constant': cv2.BORDER_CONSTANT,
         'replicate': cv2.BORDER_REPLICATE,
-        'wrap': cv2.BORDER_WRAP,
     }
 
     def __init__(

@@ -2,7 +2,7 @@
 Directory contains code to perform different implementation of the sigma clipping algorithm.
 """
 
-from programs.sigma_clipping.convolution import BorderType, Convolution
+from programs.sigma_clipping.convolution import BorderType, Convolution, Padding
 from programs.sigma_clipping.sliding_mode import SlidingMean, SlidingMedian
 from programs.sigma_clipping.standard_deviation import FastStandardDeviation
 from programs.sigma_clipping.old_sigma_clipping import sigma_clip

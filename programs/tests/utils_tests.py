@@ -32,8 +32,8 @@ class TestUtils:
     Utility functions that can be used in different tests.
     """
 
-    ADD_NANS: bool = True
-    NB_PROCESSES: int = 32
+    ADD_NANS: bool = False
+    NB_PROCESSES: int = 94
     COMPARE_NANS: bool = True
 
     @staticmethod
@@ -46,9 +46,9 @@ class TestUtils:
         """
 
         fits_files = glob.glob(
-            '/home/voyeux-alfred/Documents/work_codes/sigma_clipping_tests/results/*L1*.fits'
+            '/archive/SOLAR-ORBITER/SPICE/fits/level1/20*/*/*/*L1*.fits'
         )
-        return fits_files[:64]
+        return fits_files[:5000]
 
     @staticmethod
     def open_file(filepath: str) -> np.ndarray[tuple[int, ...], np.dtype[np.float32]] | dict:
@@ -65,9 +65,9 @@ class TestUtils:
 
         try:
             hdul = fits.open(filepath)
-            data = hdul[0].data.astype(np.float32).squeeze()#type: ignore
+            data = hdul[0].data.astype(np.float64).squeeze()#type: ignore
             hdul.close()
-            if TestUtils.ADD_NANS: data = TestUtils._add_NaNs(data, fraction=0.05)
+            if TestUtils.ADD_NANS: data = TestUtils.add_NaNs(data, fraction=0.05)
             return data
         except (FileNotFoundError, OSError, IOError) as e:
             log = {
@@ -79,7 +79,7 @@ class TestUtils:
             return log
 
     @staticmethod
-    def _add_NaNs(data: np.ndarray, fraction: float = 0.01) -> np.ndarray:
+    def add_NaNs(data: np.ndarray, fraction: float = 0.01) -> np.ndarray:
         """
         To randomly add NaN values to the given data.
 

@@ -69,9 +69,9 @@ class TestSigmaClipping:
             # OLD sigma clipping
             old_result = sigma_clip(
                 data=data,
-                size=5,
-                sigma=2.,
-                max_iters=2,
+                size=3,
+                sigma=.5,
+                max_iters=3,
                 center_func='median',
                 masked=False,
             )
@@ -79,10 +79,10 @@ class TestSigmaClipping:
             # NEW sigma clipping
             fast_sigma_clipping = FastSigmaClipping(
                 data=data,
-                kernel=5,
+                kernel=3,
                 center_choice='median',
-                sigma=2.,
-                max_iters=2,
+                sigma=.5,
+                max_iters=3,
                 masked_array=False,
             ).results
 

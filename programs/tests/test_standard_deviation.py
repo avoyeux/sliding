@@ -57,7 +57,7 @@ class TestStandardDeviation:
         """
 
         filepaths = TestUtils.get_filepaths()
-        print(f"Found {len(filepaths)} FITs files for testing borders.")
+        print(f"Found {len(filepaths)} FITs files for standard deviation.")
         return filepaths
 
     def test_standard_deviation(

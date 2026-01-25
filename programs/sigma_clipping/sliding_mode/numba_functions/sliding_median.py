@@ -11,7 +11,7 @@ import numpy as np
 from numba import njit, prange
 
 # TYPE ANNOTATIONs
-from typing import cast
+# from typing import cast
 
 # API public
 __all__ = [
@@ -51,7 +51,7 @@ def tuple_sliding_nanmedian_3d[Data: np.ndarray](data: Data, kernel: tuple[int, 
             for d in range(depth - 2 * pad_d):
                 window = data[d:d + kernel[0], i:i + kernel[1], j:j + kernel[2]].ravel()
                 results[d, i, j] = _fast_median(window)
-    return cast(Data, results)
+    return results#type:ignore
 
 def tuple_sliding_nanmedian_nd[Data: np.ndarray](data: Data, kernel: tuple[int, ...]) -> Data:
     """
@@ -72,7 +72,7 @@ def tuple_sliding_nanmedian_nd[Data: np.ndarray](data: Data, kernel: tuple[int, 
 
     # MEDIAN sliding
     result_flat = _tuple_sliding_nanmedian_nd(data, kernel, output_shape_arr)
-    return cast(Data, result_flat.reshape(output_shape_tuple))
+    return result_flat.reshape(output_shape_tuple)#type:ignore
 
 @njit(parallel=True)
 def sliding_weighted_median_3d[Data: np.ndarray](
@@ -114,7 +114,7 @@ def sliding_weighted_median_3d[Data: np.ndarray](
                     results[d, i, j] = np.nan
                 else:
                     results[d, i, j] = _weighted_median(valid_values, valid_weights)
-    return cast(Data, results)
+    return results#type:ignore
 
 def sliding_weighted_median_nd[Data: np.ndarray](data: Data, kernel: np.ndarray) -> Data:
     """
@@ -133,7 +133,7 @@ def sliding_weighted_median_nd[Data: np.ndarray](data: Data, kernel: np.ndarray)
 
     # MEDIAN sliding
     result_flat = _sliding_weighted_median_nd(data, kernel)
-    return cast(Data, result_flat.reshape(output_shape))
+    return result_flat.reshape(output_shape)#type:ignore
 
 @njit
 def _fast_median(window: np.ndarray) -> np.floating | float:

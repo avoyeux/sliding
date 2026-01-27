@@ -12,7 +12,7 @@ from numba import set_num_threads
 
 # IMPORTs local
 from programs.sigma_clipping.convolution import BorderType
-from programs.sigma_clipping.sliding_mode import SlidingMean, SlidingMedian
+from programs.sigma_clipping.sliding_mode import SlidingMedian
 from programs.sigma_clipping.standard_deviation import FastStandardDeviation
 
 # TYPE ANNOTATIONs
@@ -22,19 +22,18 @@ type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[n
 # API public
 __all__ = ["FastSigmaClipping"]
 
-# ? should I make sure that the input array is of type float64 as the code wasn't working as
-# ? intended (at least when the input wasn't of type floating).
-# todo need to add .squeeze() when opening the FITS files.
-# todo check type annotations to see if I can make them simpler.
-
 
 
 class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     """
     For a sliding sigma clip of an input array with a given kernel.
     Use the 'results' property to get the sigma clipped array.
-    ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
-    ! (when the kernel is given as an ndarray or a tuple of ints).
+    ! IMPORTANT:
+    !    Kernel size must be odd and of the same dimensionality as the input array.
+    !    Input data needs to be of float32 or float64 type.
+    !    Recommended to use float64 even if float32 works (to avoid precision issues (rare)).
+    !    While numerically stable, the sliding standard deviation code uses a lot of memory
+    !        (~kernel.size * input_data.nbytes).
 
     Raises:
         ValueError: if the kernel size is even.
@@ -106,9 +105,12 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         The result is accessed through the 'results' property and will be a numpy.ma.MaskedArray if
         'masked_array' is set to True, else a numpy.array. The sigma clipping is done iteratively
         'max_iters' number of times or till there are no more pixels flagged.
-        NOTE: 
-            ! kernel size must be odd (wouldn't make sense otherwise).
-            ! kernel dimensionality must match data dimensionality (when kernel is not an int).
+        ! IMPORTANT:
+        !    Kernel size must be odd and of the same dimensionality as the input array.
+        !    Input data needs to be of float32 or float64 type.
+        !    Recommended to use float64 even if float32 works (to avoid precision issues (rare)).
+        !    While numerically stable, the sliding standard deviation code uses a lot of memory
+        !        (~kernel.size * input_data.nbytes).
 
         Args:
             data (np.ndarray): the data to sigma clip.
@@ -130,10 +132,9 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't have
                 the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
                 no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
-            threads (int | None, optional): the number of threads to use for numba and cv2
-                parallelization. If None, uses the default number of threads. Defaults to 1.
-                ! Might not work as expected given than numpy, numba and cv2 do not always let you
-                ! set the number of threads at runtime.
+            threads (int | None, optional): the number of threads to use for numba parallelization.
+                when setting 'center_choice' to 'median'. If None, uses the default number of
+                    threads. Defaults to 1.
             masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
                 ndarray (False). Defaults to True.
         """
@@ -234,13 +235,25 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         while (changed is True) and (iterations < self._max_iters):
 
             # CENTERs and STDDEVs
-            mode = self._get_mode(output)
-            std_devs = FastStandardDeviation(
+            instance_std = FastStandardDeviation(
                 data=output,
                 kernel=self._kernel,
                 borders=self._borders,
-                threads=self._threads,
-            ).sdev
+            )
+            std_devs = instance_std.standard_deviation
+
+            # MODE
+            if self._center_choice == 'mean':
+                mode = instance_std.mean
+            elif self._center_choice == 'median':
+                mode = SlidingMedian(
+                    data=output,
+                    kernel=self._kernel,
+                    borders=self._borders,#type: ignore
+                    threads=self._threads,
+                ).median
+            else:
+                raise ValueError(f"Unknown center choice: {self._center_choice}")
 
             diffs = output - mode
             lower = diffs < - self._sigma_lower * std_devs
@@ -257,40 +270,3 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         output[isnan] = mode[isnan]
         if self._masked_array: return cast(Output, ma.masked_array(output, mask=isnan))
         return cast(Output, output)
-
-    def _get_mode(self, data: np.ndarray) -> np.ndarray:
-        """
-        To get the sliding mode (mean or median) of 'data' given the kernel.
-
-        Args:
-            data (np.ndarray): the data to get the sliding mode for.
-
-        Raises:
-            ValueError: if the center choice is unknown.
-
-        Returns:
-            np.ndarray: the sliding mode result.
-        """
-
-        if self._center_choice == 'mean':
-            if isinstance(self._kernel, tuple):
-                kernel = np.ones(self._kernel, dtype=data.dtype)
-            else:
-                kernel = self._kernel
-            mean = SlidingMean(
-                data=data,
-                kernel=kernel,
-                borders=self._borders,#type: ignore
-                threads=self._threads,
-            ).mean
-            return mean
-        elif self._center_choice == 'median':
-            median = SlidingMedian(
-                data=data,
-                kernel=self._kernel,
-                borders=self._borders,#type: ignore
-                threads=self._threads,
-            ).median
-            return median
-        else:
-            raise ValueError(f"Unknown center choice: {self._center_choice}")

@@ -20,9 +20,6 @@ from programs.sigma_clipping.convolution.padding import BorderType
 # API public
 __all__ = ["Convolution"]
 
-# ? should I change the type annotation of the kernel and add a runtime beartype check to make
-# ? sure of the kernel size? or is this good enough ?
-
 
 
 class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:

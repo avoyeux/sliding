@@ -15,7 +15,7 @@ from programs.sigma_clipping.convolution import BorderType, Padding
 
 # TYPE ANNOTATIONs
 import numpy.typing as npt
-from typing import cast, Any
+from typing import Any
 
 # API public
 __all__ = ["FastStandardDeviation"]
@@ -32,17 +32,18 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
             data: Array,
             kernel: int | tuple[int, ...] | Array,
             borders: BorderType = 'reflect',
-            threads: int | None = 1,
         ) -> None:
         """
-        Computes the moving sample standard deviations using convolutions. The size of each sample
-        is defined by the kernel. If you decide to have different weights in the kernel, keep in
-        mind that the standard deviation will take a little longer to compute (no approximation
-        possible).
-        To retrieve the computed standard deviations, use the 'sdev' property.
+        Computes the moving sample standard deviations using convolutions.
+        Given the way the standard deviation is computed (using a stable solution, c.f.
+        '_standard_deviation'), the sliding mean is also computed at the same time as an
+        intermediate step.
+        The size of each sample is defined by the kernel.
+        To retrieve the computed standard deviations, use the 'standard_deviation' property.
+        To retrieve the computed sliding mean, use the 'mean' property.
         NaN handling is done.
-        ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array
-        ! (when the kernel is given as an ndarray or a tuple of ints).
+        ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array.
+        ! IMPORTANT: recommended to use float64 even if float32 is supported. 
 
         Args:
             data (Array): the data for which the moving sample standard deviations are computed.
@@ -56,24 +57,19 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't have
                 the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
                 no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
-            threads (int | None, optional): the number of threads to use for the computation.
-                If None, doesn't change any thread values. Defaults to 1.
-                ! Might not work as expected given that numpy, numba and cv2 do not always let you
-                ! set the number of threads at runtime.
         """
 
         self._data = data
         self._borders = borders
-        self._threads = threads
 
         # CHECK kernel
         self._kernel = self._check_kernel(kernel)
 
         # RUN
-        self._sdev = self._sdev_loc()
+        self._mean, self._sdev = self._standard_deviation()
 
     @property
-    def sdev(self) -> Array:
+    def standard_deviation(self) -> Array:
         """
         Returns the moving sample standard deviations.
 
@@ -82,6 +78,16 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
                 deviations.
         """
         return self._sdev
+
+    @property
+    def mean(self) -> Array:
+        """
+        Returns the moving sample means.
+
+        Returns:
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample means.
+        """
+        return self._mean
 
     def _check_kernel(self, kernel: int | tuple[int, ...] | np.ndarray) -> np.ndarray:
         """
@@ -127,21 +133,25 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
                 "'kernel' must be an int, a tuple of ints, or a numpy ndarray."
             )
 
-    def _sdev_loc(self) -> Array:
+    def _standard_deviation(self) -> tuple[Array, Array]:
         """
         Computes the sliding standard deviation using the same equation than in Welford.
+        Given the operation done, the sliding mean is also computed at the same time.
 
         Operation done is basically:
-        * n = len(data)
-        * mean = sum(data) / n
-        * variance = sum((x - mean) ** 2 for x in data) / (n - 1)
-        * std = sqrt(variance)
+            * n = len(data)
+            * mean = sum(data) / n
+            * variance = sum((x - mean) ** 2 for x in data) / (n - 1)
+            * std = sqrt(variance)
         Of course, computations are done using arrays and sliding windows to do the 'for x in data'
         part as data is defined by a kernel / is a window.
         Furthermore, conditional operations are added to take care of NaN values in the data (or 
         from the padding).
         The memory usage is basically as low as possible when wanting to do all operations at once
-        (still high because need at least one full sliding window view buffer needs to be used).
+        (still high because at least one full sliding window view buffer needs to be used).
+
+        Returns:
+            tuple[Array, Array]: the sliding mean and standard deviation.
         """
 
         # PAD data
@@ -183,6 +193,7 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
             np.copyto(buffer, windows)
             sum_sliding = buffer.sum(axis=kernel_axes)
         else:
+            # WEIGHTED
             # COUNT valid data weighted
             np.multiply(valid_windows, self._kernel, out=buffer)
             count = buffer.sum(axis=kernel_axes)
@@ -212,57 +223,7 @@ class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
         # STD 
         with np.errstate(divide="ignore", invalid="ignore"):
             std = np.where(count > 0, np.sqrt(M2 / count), 0.0).astype(self._data.dtype)
-        return cast(Array, std)
-
-    # def _sdev_loc(self) -> Array:
-    #      # ! same values as generic filter but chosen method should be more stable 
-    #     """
-    #     Computes the sliding standard deviation using the Welford Formula.
-
-    #     Returns:
-    #         Array: the sliding standard deviation.
-    #     """
-
-    #     axis = tuple(range(self._data.ndim))
-
-    #     # PAD data
-    #     padded = Padding(
-    #         data=self._data,
-    #         kernel=self._kernel.shape,
-    #         borders=self._borders,#type:ignore
-    #     ).padded
-
-    #     # NaN handling
-    #     valid = ~np.isnan(padded)
-    #     arr_filled = np.where(valid, padded, 0.).astype(self._data.dtype)
-
-    #     # SLIDING WINDOWS
-    #     windows = sliding_window_view(
-    #         x=arr_filled,
-    #         window_shape=self._kernel.shape,
-    #         axis=axis,#type:ignore
-    #     )
-    #     valid_windows = sliding_window_view(  # ? not needed when no NaNs or needed for borders?
-    #         x=valid,
-    #         window_shape=self._kernel.shape,
-    #         axis=axis,#type:ignore
-    #     )
-
-    #     # COUNT weighted (sum of weights for valid entries)
-    #     kernel_axes = tuple(range(-len(axis), 0))
-    #     kernel_sum = (valid_windows * self._kernel).sum(axis=kernel_axes)
-
-    #     # MEAN weighted
-    #     sum_vals = (windows * self._kernel).sum(axis=kernel_axes)
-    #     with np.errstate(divide="ignore", invalid="ignore"):
-    #         mean = np.where(kernel_sum > 0, sum_vals / kernel_sum, 0.0).astype(self._data.dtype)
-
-    #     # STD weighted
-    #     diff = np.where(valid_windows, windows - np.expand_dims(mean, axis=kernel_axes), 0.0)
-    #     M2 = (diff**2 * self._kernel).sum(axis=kernel_axes)
-    #     with np.errstate(divide="ignore", invalid="ignore"):
-    #         std = np.where(kernel_sum > 0, np.sqrt(M2 / kernel_sum), 0.0).astype(self._data.dtype)
-    #     return cast(Array, std)
+        return mean, std#type:ignore
 
     # def _sdev_loc_old(self) -> Array:  # ! problems with low values
     #     """

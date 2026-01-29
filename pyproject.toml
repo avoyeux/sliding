@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigma-clipping"
+version = "0.1.0"
+description = "Sliding sigma-clipping, mean, median and standard deviation utilities."
+authors = [
+    { name = "Voyeux Alfred", email = "voyeuxalfred@gmail.com" },
+    { name = "Auchere Frederic" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.3",
+    "numba>=0.63.1",
+    "scipy>=1.17",
+    "opencv-python>=4.13",
+    "threadpoolctl>=3.6",
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+include = ["sliding*"]

@@ -39,6 +39,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
             data: Data,
             kernel: Data,
             borders: BorderType = 'reflect',
+            cval: float = 0.,
             threads: int | None = 1,
         ) -> None:
         """
@@ -53,6 +54,8 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't
                 have the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders,
                 i.e. no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
+            cval (float, optional): the constant value to use if borders is 'constant'.
+                Defaults to 0..
             threads (int | None, optional): the number of threads to use for the computation.
                 If None, doesn't change change the default behaviour. Defaults to 1.
         """
@@ -61,6 +64,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
         self._input_dtype = data.dtype
         self._data: Data = data.copy()
         self._kernel = kernel
+        self._cval = cval
 
         # RUN
         if threads is not None:
@@ -87,6 +91,14 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
         if self._borders is None:
             # ADAPTATIVE kernel for the borders
             self._convolve_normalised()
+        elif self._borders == 'constant' and not np.isclose(self._cval, 0.):
+            convolve(
+                self._data,
+                self._kernel,
+                output=self._data,
+                mode='constant',
+                cval=self._cval,
+            )
         else:
             # STANDARD borders
             self._convolve(self._data, borders=self._borders)

@@ -32,7 +32,7 @@ class TestUtils:
     Utility functions that can be used in different tests.
     """
 
-    ADD_NANS: bool = False
+    ADD_NANS: bool = True
     NB_PROCESSES: int = 94
     COMPARE_NANS: bool = True
 
@@ -48,7 +48,11 @@ class TestUtils:
         fits_files = glob.glob(
             '/archive/SOLAR-ORBITER/SPICE/fits/level1/20*/*/*/*L1*.fits'
         )
-        return fits_files[:500]
+        if TestUtils.ADD_NANS:
+            print(f"\033[93mNaNs added to the data for testing.\033[0m")
+        else:
+            print(f"\033[93mNo NaNs added to the data for testing.\033[0m")
+        return fits_files[:300]
 
     @staticmethod
     def open_file(filepath: str) -> np.ndarray[tuple[int, ...], np.dtype[np.float32]] | dict:

@@ -189,7 +189,7 @@ class TestBorders:
             ).mean
 
             mode = 'nearest' if border == 'replicate' else border
-            old_result = generic_filter(
+            output = generic_filter(
                 input=data,
                 function=lambda x: np.nanmean(x),
                 size=kernel,
@@ -199,7 +199,8 @@ class TestBorders:
             # CHECK all values
             comparison_log = TestUtils.compare(
                 actual=new_result,
-                desired=old_result,
+                desired=output,
                 filepath=filepath,
             )
             result_queue.put(comparison_log)
+

@@ -96,6 +96,7 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
                 data=valid_mask.astype(self._data.dtype),
                 kernel=np.ones(self._kernel.shape, dtype=self._data.dtype),
                 borders=self._borders,
+                cval=1. if self._borders == 'constant' else 0.,
                 threads=self._threads,
             ).result
             return valid_mask, count
@@ -142,13 +143,3 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
         with np.errstate(divide='ignore', invalid='ignore'):
             means = np.where(count > 0, sum_values / count, 0.0).astype(self._data.dtype)
         return cast(Data, means)
-
-if __name__ == "__main__":
-    data = np.ones((10, 10), dtype=np.float32)
-    instance = SlidingMean(
-        data=data,
-        kernel=np.ones((3, 3), dtype=np.float32),
-        borders='reflect',
-        threads=1,
-    )
-    mean = instance.mean

@@ -13,18 +13,18 @@ from numba import set_num_threads
 # IMPORTs local
 from programs.sigma_clipping.convolution import BorderType
 from programs.sigma_clipping.sliding_mode import SlidingMedian
-from programs.sigma_clipping.standard_deviation import FastStandardDeviation
+from programs.sigma_clipping.standard_deviation import SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 from typing import cast, Literal, overload
 type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
 
 # API public
-__all__ = ["FastSigmaClipping"]
+__all__ = ["SigmaClipping"]
 
 
 
-class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
+class SigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     """
     For a sliding sigma clip of an input array with a given kernel.
     Use the 'results' property to get the sigma clipped array.
@@ -41,7 +41,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload
     def __init__(
-            self: FastSigmaClipping[ma.MaskedArray],
+            self: SigmaClipping[ma.MaskedArray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
@@ -56,7 +56,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload
     def __init__(
-            self: FastSigmaClipping[np.ndarray],
+            self: SigmaClipping[np.ndarray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
@@ -72,7 +72,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload  #fallback
     def __init__(
-            self: FastSigmaClipping[np.ndarray | ma.MaskedArray],
+            self: SigmaClipping[np.ndarray | ma.MaskedArray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
@@ -235,7 +235,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         while (changed is True) and (iterations < self._max_iters):
 
             # CENTERs and STDDEVs
-            instance_std = FastStandardDeviation(
+            instance_std = SlidingStandardDeviation(
                 data=output,
                 kernel=self._kernel,
                 borders=self._borders,

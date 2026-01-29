@@ -19,7 +19,7 @@ from multiprocessing import shared_memory
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
 from programs.sigma_clipping import (
-    FastStandardDeviation, FastSigmaClipping, sigma_clip, SlidingMedian, SlidingMean,
+    SlidingStandardDeviation, SigmaClipping, sigma_clip, SlidingMedian, SlidingMean,
 )
 
 # TYPE ANNOTATIONs
@@ -202,7 +202,7 @@ class CheckTimes:
                 if counter.value <= 0: break
                 counter.value -= 1
 
-            _ = FastStandardDeviation(
+            _ = SlidingStandardDeviation(
                 data=data,
                 kernel=kernel,
                 borders='reflect',
@@ -312,7 +312,7 @@ class CheckTimes:
                 if counter.value <= 0: break
                 counter.value -= 1
 
-            _ = FastSigmaClipping(
+            _ = SigmaClipping(
                 data=data,
                 kernel=kernel,
                 center_choice='mean',
@@ -354,7 +354,7 @@ class CheckTimes:
                 if counter.value <= 0: break
                 counter.value -= 1
 
-            _ = FastSigmaClipping(
+            _ = SigmaClipping(
                 data=data,
                 kernel=kernel,
                 center_choice='median',

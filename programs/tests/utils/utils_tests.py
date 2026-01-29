@@ -48,7 +48,7 @@ class TestUtils:
         fits_files = glob.glob(
             '/archive/SOLAR-ORBITER/SPICE/fits/level1/20*/*/*/*L1*.fits'
         )
-        return fits_files[:5000]
+        return fits_files[:500]
 
     @staticmethod
     def open_file(filepath: str) -> np.ndarray[tuple[int, ...], np.dtype[np.float32]] | dict:

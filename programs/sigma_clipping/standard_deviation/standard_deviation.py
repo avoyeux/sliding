@@ -18,11 +18,11 @@ import numpy.typing as npt
 from typing import Any
 
 # API public
-__all__ = ["FastStandardDeviation"]
+__all__ = ["SlidingStandardDeviation"]
 
 
 
-class FastStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
+class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
     """
     To compute the moving sample standard deviations using convolutions.
     """

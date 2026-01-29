@@ -13,7 +13,9 @@ from scipy.ndimage import generic_filter
 # TYPE ANNOTATIONs
 from typing import cast, Literal, Callable
 
-import time
+# API public
+__all__ = ['sigma_clip']
+
 
 
 def _get_numpy_function(data: np.ndarray, name: str) -> Callable[..., np.ndarray | np.floating]:

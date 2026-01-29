@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 
 # IMPORTs local
-from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import SlidingMean, SlidingMedian, FastStandardDeviation
+from programs.tests.utils import TestUtils
+from programs.sigma_clipping import SlidingMean, SlidingMedian, SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue
@@ -124,7 +124,7 @@ class TestMeanMedian:
             #     threads=1,
             # ).mean
 
-            std_instance = FastStandardDeviation(
+            std_instance = SlidingStandardDeviation(
                 data=data,
                 kernel=kernel_size,
                 borders='reflect',

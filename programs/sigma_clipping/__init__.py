@@ -4,6 +4,6 @@ Directory contains code to perform different implementation of the sigma clippin
 
 from programs.sigma_clipping.convolution import BorderType, Convolution, Padding
 from programs.sigma_clipping.sliding_mode import SlidingMean, SlidingMedian
-from programs.sigma_clipping.standard_deviation import FastStandardDeviation
+from programs.sigma_clipping.standard_deviation import SlidingStandardDeviation
 from programs.sigma_clipping.old_sigma_clipping import sigma_clip
-from programs.sigma_clipping.fast_sigma_clipping import FastSigmaClipping
+from programs.sigma_clipping.sigma_clipping import SigmaClipping

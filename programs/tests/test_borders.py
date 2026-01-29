@@ -13,8 +13,8 @@ import numpy as np
 from scipy.ndimage import generic_filter
 
 # IMPORTs local
-from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import SlidingMean
+from programs.tests.utils import TestUtils
+from programs.sigma_clipping import SlidingMean  # ? change it to .mean from standard deviation ?
 
 # TYPE ANNOTATIONs
 import queue

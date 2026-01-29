@@ -7,42 +7,12 @@ from __future__ import annotations
 import pytest
 
 # IMPORTs local
-from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import FastStandardDeviation
+from programs.tests.utils import TestUtils
+from programs.sigma_clipping import SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue
 
-# def sliding_old(arr: np.ndarray, kernel_shape: tuple[int, ...]):
-#     # todo add docstring
-
-#     axis = tuple(range(arr.ndim))
-#     assert len(kernel_shape) == len(axis), "kernel_shape match number of axes"
-    
-#     pad = tuple((k // 2, k // 2) for k in kernel_shape)
-#     arr = TestUtils.add_padding(
-#         border='reflect',
-#         data=arr,
-#         pad=pad,
-#     )
-
-#     # VIEW
-#     windows = sliding_window_view(
-#         x=arr,
-#         window_shape=kernel_shape,
-#         axis=axis,#type: ignore
-#     )
-
-#     kernel_axes = tuple(range(-len(axis), 0))
-
-#     # MEAN
-#     mean = windows.mean(axis=kernel_axes)
-
-#     # STD stable
-#     diff = windows - np.expand_dims(mean, axis=kernel_axes)
-#     M2 = np.sum(diff**2, axis=kernel_axes)
-#     std = np.sqrt(M2 / np.prod(kernel_shape))
-#     return mean, std
 
 
 class TestStandardDeviation:
@@ -106,7 +76,7 @@ class TestStandardDeviation:
             )
 
             # NEW std
-            new_standard_deviation = FastStandardDeviation(
+            new_standard_deviation = SlidingStandardDeviation(
                 data=data,
                 kernel=kernel,
                 borders='reflect',

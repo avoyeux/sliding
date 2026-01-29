@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 # IMPORTs local
-from programs.sigma_clipping import FastSigmaClipping, sigma_clip
-from programs.tests.utils_tests import TestUtils
+from programs.tests.utils import TestUtils, sigma_clip
+from programs.sigma_clipping import SigmaClipping
 
 # TYPE ANNOTATIONs
 import queue
@@ -120,7 +120,7 @@ class TestSigmaClipping:
             )
 
             # NEW sigma clipping
-            fast_sigma_clipping = FastSigmaClipping(
+            fast_sigma_clipping = SigmaClipping(
                 data=data,
                 kernel=3,
                 center_choice=center,#type:ignore

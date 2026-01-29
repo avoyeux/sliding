@@ -7,8 +7,8 @@ from __future__ import annotations
 import pytest
 
 # IMPORTs local
-from programs.tests.utils import TestUtils
-from programs.sigma_clipping import SlidingStandardDeviation
+from tests.utils import TestUtils
+from sliding import SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue

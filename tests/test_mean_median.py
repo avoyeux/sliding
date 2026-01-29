@@ -11,14 +11,11 @@ import numpy as np
 import pytest
 
 # IMPORTs local
-from programs.tests.utils import TestUtils
-from programs.sigma_clipping import SlidingMean, SlidingMedian, SlidingStandardDeviation
+from tests.utils import TestUtils
+from sliding import SlidingMean, SlidingMedian, SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue
-
-# API public
-__all__ = ['TestMeanMedian']
 
 
 
@@ -37,7 +34,7 @@ class TestMeanMedian:
         print(f"Found {len(filepaths)} FITs files for testing mean and median.")
         return filepaths
 
-    def test_mean(
+    def test_mean_sliding(
             self,
             filepaths: list[str],
         ) -> None:
@@ -50,7 +47,23 @@ class TestMeanMedian:
 
         TestUtils.multiprocess(
             filepaths=filepaths,
-            target=self._run_mean_test,
+            target=self._run_mean_sliding_test,
+        )
+
+    def test_mean_std(
+            self,
+            filepaths: list[str],
+        ) -> None:
+        """
+        Running tests on the new and old mean implementations.
+
+        Args:
+            filepaths (list[str]): the FITS filepaths to run the tests for.
+        """
+
+        TestUtils.multiprocess(
+            filepaths=filepaths,
+            target=self._run_mean_std_test,
         )
 
     def test_median_array(
@@ -88,7 +101,49 @@ class TestMeanMedian:
         )
 
     @staticmethod
-    def _run_mean_test(
+    def _run_mean_std_test(
+            input_queue: queue.Queue[str | None],
+            result_queue: queue.Queue[dict],
+        ) -> None:
+        """
+        Old and new mean implementation test (used as the target for the multiprocessing).
+
+        Args:
+            input_queue (queue.Queue[str | None]): the input queue with the filepaths.
+            result_queue (queue.Queue[dict]): the result queue to put the results in.
+        """
+
+        while True:
+            filepath = input_queue.get()
+            if filepath is None: break
+
+            data = TestUtils.open_file(filepath)
+            if isinstance(data, dict): result_queue.put(data); continue
+
+            # OLD mean
+            kernel_size = (3,) * data.ndim
+            old_mean = TestUtils.old_implementation(
+                function='mean',
+                data=data,
+                kernel_size=kernel_size,
+            )
+
+            new_mean = SlidingStandardDeviation(
+                data=data,
+                kernel=kernel_size,
+                borders='reflect',
+            ).mean
+
+            # Comparison
+            comparison_log = TestUtils.compare(
+                actual=old_mean,
+                desired=new_mean,
+                filepath=filepath,
+            )
+            result_queue.put(comparison_log)
+
+    @staticmethod
+    def _run_mean_sliding_test(
             input_queue: queue.Queue[str | None],
             result_queue: queue.Queue[dict],
         ) -> None:
@@ -116,20 +171,13 @@ class TestMeanMedian:
             )
 
             # NEW mean
-            # kernel = np.ones(kernel_size, dtype=data.dtype)
-            # new_mean = SlidingMean(
-            #     data=data,
-            #     kernel=kernel,
-            #     borders='reflect',
-            #     threads=1,
-            # ).mean
-
-            std_instance = SlidingStandardDeviation(
+            kernel = np.ones(kernel_size, dtype=data.dtype)
+            new_mean = SlidingMean(
                 data=data,
-                kernel=kernel_size,
+                kernel=kernel,
                 borders='reflect',
-            )
-            new_mean = std_instance.mean
+                threads=1,
+            ).mean
 
             # Comparison
             comparison_log = TestUtils.compare(

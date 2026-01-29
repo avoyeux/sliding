@@ -4,11 +4,10 @@
 # DIRs whitelisted
 !libs/
 !libs/**
-!programs/
-!programs/**/
-
-# SUBMODULEs exception
-!libs/**/.git
+!sliding/
+!sliding/**/
+!tests/
+!tests/**/
 
 # TYPEs whitelist
 !**/*.pro
@@ -17,7 +16,7 @@
 !**/*.md
 !**/*.yml
 !**/*.txt
-!**/*.sh
+!**/*.toml
 
 # BLACKLIST specific dirs
 **/.*/

@@ -15,7 +15,7 @@ from scipy.ndimage import convolve
 from threadpoolctl import threadpool_limits
 
 # TYPE ANNOTATIONs
-from programs.sigma_clipping.convolution.padding import BorderType
+from sliding.convolution.padding import BorderType
 
 # API public
 __all__ = ["Convolution"]

@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 
 # IMPORTs local
-from programs.sigma_clipping.convolution import BorderType, Convolution
+from sliding.convolution import BorderType, Convolution
 
 # TYPE ANNOTATIONs
 from typing import cast, Any

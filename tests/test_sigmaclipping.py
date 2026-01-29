@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 # IMPORTs local
-from programs.tests.utils import TestUtils, sigma_clip
-from programs.sigma_clipping import SigmaClipping
+from tests.utils import TestUtils, sigma_clip
+from sliding import SigmaClipping
 
 # TYPE ANNOTATIONs
 import queue

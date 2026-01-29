@@ -11,9 +11,9 @@ from numpy import ma
 from numba import set_num_threads
 
 # IMPORTs local
-from programs.sigma_clipping.convolution import BorderType
-from programs.sigma_clipping.sliding_mode import SlidingMedian
-from programs.sigma_clipping.standard_deviation import SlidingStandardDeviation
+from sliding.convolution import BorderType
+from sliding.mode import SlidingMedian
+from sliding.standard_deviation import SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
 from typing import cast, Literal, overload

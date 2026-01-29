@@ -9,8 +9,8 @@ import numpy as np
 from numba import set_num_threads
 
 # IMPORTs local
-from programs.sigma_clipping.convolution import Padding, BorderType
-from programs.sigma_clipping.sliding_mode.numba_functions import (
+from sliding.convolution import Padding, BorderType
+from sliding.mode.numba_functions import (
     tuple_sliding_nanmedian_3d, tuple_sliding_nanmedian_nd,
     sliding_weighted_median_3d, sliding_weighted_median_nd,
 )

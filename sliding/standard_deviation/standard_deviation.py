@@ -11,7 +11,7 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
 # IMPORTs local
-from programs.sigma_clipping.convolution import BorderType, Padding
+from sliding.convolution import BorderType, Padding
 
 # TYPE ANNOTATIONs
 import numpy.typing as npt

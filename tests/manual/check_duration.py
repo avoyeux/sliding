@@ -17,10 +17,8 @@ import multiprocessing as mp
 from multiprocessing import shared_memory
 
 # IMPORTs local
-from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import (
-    SlidingStandardDeviation, SigmaClipping, sigma_clip, SlidingMedian, SlidingMean,
-)
+from tests.utils import TestUtils, sigma_clip
+from sliding import SlidingStandardDeviation, SigmaClipping, SlidingMedian, SlidingMean
 
 # TYPE ANNOTATIONs
 from typing import Callable, cast

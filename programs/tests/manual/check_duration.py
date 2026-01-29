@@ -29,7 +29,7 @@ from multiprocessing.synchronize import Lock as LockType
 type CounterType = Synchronized[int]
 type SharedMemoryType = shared_memory.SharedMemory
 
- # todo add same data for all
+
 
 class CheckTimes:
     """
@@ -50,17 +50,14 @@ class CheckTimes:
 
         print(f"\033[1;34mChecking standard deviation...\033[0m")
 
-        # NEW
         self._multiprocess(
             name='New standard deviation',
             target=self._worker_new_std,
         )
-
-        # # OLD
-        # self._multiprocess(
-        #     name='Old standard deviation',
-        #     target=self._worker_old_std,
-        # )
+        self._multiprocess(
+            name='Old standard deviation',
+            target=self._worker_old_std,
+        )
 
     def run_mean(self) -> None:
         """
@@ -69,13 +66,10 @@ class CheckTimes:
 
         print(f"\033[1;34mChecking mean...\033[0m")
 
-        # NEW
         self._multiprocess(
             name='New mean',
             target=self._worker_new_mean,
         )
-
-        # OLD
         self._multiprocess(
             name='Old mean',
             target=self._worker_old_mean,
@@ -88,35 +82,45 @@ class CheckTimes:
 
         print(f"\033[1;34mChecking median...\033[0m")
 
-        # NEW
         self._multiprocess(
             name='New median',
             target=self._worker_new_median,
         )
-
-        # OLD
         self._multiprocess(
             name='Old median',
             target=self._worker_old_median,
         )
 
-    def run_sigma_clipping(self) -> None:
+    def run_sigma_clipping_mean(self) -> None:
         """
         Runs the sigma clipping time checks.
         """
 
-        print(f"\033[1;34mChecking sigma clipping...\033[0m")
+        print(f"\033[1;34mChecking sigma clipping mean...\033[0m")
 
-        # NEW
         self._multiprocess(
-            name='New sigma clipping',
-            target=self._worker_new_sigma_clipping,
+            name='New sigma clipping mean',
+            target=self._worker_new_sigma_clipping_mean,
+        )
+        self._multiprocess(
+            name='Old sigma clipping mean',
+            target=self._worker_old_sigma_clipping_mean,
         )
 
-        # OLD
+    def run_sigma_clipping_median(self) -> None:
+        """
+        Runs the sigma clipping time checks.
+        """
+
+        print(f"\033[1;34mChecking sigma clipping median...\033[0m")
+
         self._multiprocess(
-            name='Old sigma clipping',
-            target=self._worker_old_sigma_clipping,
+            name='New sigma clipping median',
+            target=self._worker_new_sigma_clipping_median,
+        )
+        self._multiprocess(
+            name='Old sigma clipping median',
+            target=self._worker_old_sigma_clipping_median,
         )
 
     @staticmethod
@@ -202,8 +206,7 @@ class CheckTimes:
                 data=data,
                 kernel=kernel,
                 borders='reflect',
-                threads=1,
-            ).sdev
+            ).standard_deviation
         shm.close()
 
     @staticmethod
@@ -299,7 +302,49 @@ class CheckTimes:
         shm.close()
 
     @staticmethod
-    def _worker_new_sigma_clipping(counter: CounterType, lock: LockType, shared: dict) -> None:
+    def _worker_new_sigma_clipping_mean(counter: CounterType, lock: LockType, shared: dict) -> None:
+
+        shm, data = CheckTimes._open_shared_memory(shared)
+        kernel = 5
+
+        while True:
+            with lock:
+                if counter.value <= 0: break
+                counter.value -= 1
+
+            _ = FastSigmaClipping(
+                data=data,
+                kernel=kernel,
+                center_choice='mean',
+                sigma=2.,
+                max_iters=3,
+                masked_array=False,
+            ).results
+        shm.close()
+
+    @staticmethod
+    def _worker_old_sigma_clipping_mean(counter: CounterType, lock: LockType, shared: dict) -> None:
+
+        shm, data = CheckTimes._open_shared_memory(shared)
+        kernel = 5
+
+        while True:
+            with lock:
+                if counter.value <= 0: break
+                counter.value -= 1
+
+            _ = sigma_clip(
+                data=data,
+                size=kernel,
+                sigma=2.,
+                max_iters=3,
+                center_func='mean',
+                masked=False,
+            )
+        shm.close()
+
+    @staticmethod
+    def _worker_new_sigma_clipping_median(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
         kernel = 5
@@ -313,14 +358,14 @@ class CheckTimes:
                 data=data,
                 kernel=kernel,
                 center_choice='median',
-                sigma=.5,
+                sigma=2.,
                 max_iters=3,
                 masked_array=False,
             ).results
         shm.close()
 
     @staticmethod
-    def _worker_old_sigma_clipping(counter: CounterType, lock: LockType, shared: dict) -> None:
+    def _worker_old_sigma_clipping_median(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
         kernel = 5
@@ -333,7 +378,7 @@ class CheckTimes:
             _ = sigma_clip(
                 data=data,
                 size=kernel,
-                sigma=.5,
+                sigma=2.,
                 max_iters=3,
                 center_func='median',
                 masked=False,
@@ -343,14 +388,15 @@ class CheckTimes:
 
 
 if __name__ == '__main__':
-    checker = CheckTimes(processes=94, jobs=5000)
+    checker = CheckTimes(processes=94, jobs=750)
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")
-    checker.run_standard_deviation()
-    checker.run_mean()
-    checker.run_median()
-    checker.run_sigma_clipping()
+    # checker.run_standard_deviation()
+    # checker.run_mean()
+    # checker.run_median()
+    checker.run_sigma_clipping_mean()
+    checker.run_sigma_clipping_median()
     end_time = time.time()
     total_duration = (end_time - start_time) / 60
     print(f"\033[1;90mAll duration checks completed in {total_duration:.2f} minutes.\033[0m")

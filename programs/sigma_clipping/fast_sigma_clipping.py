@@ -134,7 +134,7 @@ class FastSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
                 no padding and hence smaller kernels at the borders. Defaults to 'reflect'.
             threads (int | None, optional): the number of threads to use for numba parallelization.
                 when setting 'center_choice' to 'median'. If None, uses the default number of
-                    threads. Defaults to 1.
+                threads. Not used for the standard deviation. Defaults to 1.
             masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
                 ndarray (False). Defaults to True.
         """

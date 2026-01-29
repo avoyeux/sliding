@@ -110,8 +110,7 @@ class TestStandardDeviation:
                 data=data,
                 kernel=kernel,
                 borders='reflect',
-                threads=1,
-            ).sdev
+            ).standard_deviation
 
             # COMPARISON
             comparison_log = TestUtils.compare(

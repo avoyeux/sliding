@@ -31,7 +31,7 @@ class TestSigmaClipping:
         print(f"Found {len(filepaths)} FITs files for testing sigma clipping.")
         return filepaths
 
-    def test_comparison(
+    def test_clipping_mean(
             self,
             filepaths: list[str],
         ) -> None:
@@ -43,13 +43,55 @@ class TestSigmaClipping:
 
         TestUtils.multiprocess(
             filepaths=filepaths,
-            target=self._run_process,
+            target=self._run_mean,
+        )
+
+    def test_clipping_median(
+            self,
+            filepaths: list[str],
+        ) -> None:
+        """
+        Compares the results gotten from the generic filter method and the new 'fast' sigma
+        clipping method.
+        Uses multiprocessing to speed up the comparisons.
+        """
+
+        TestUtils.multiprocess(
+            filepaths=filepaths,
+            target=self._run_median,
+        )
+
+    @staticmethod
+    def _run_mean(
+            input_queue: queue.Queue[str | None],
+            result_queue: queue.Queue[dict],
+        ) -> None:
+        # todo add docstring
+
+        TestSigmaClipping._run_process(
+            input_queue=input_queue,
+            result_queue=result_queue,
+            center='mean',
+        )
+
+    @staticmethod
+    def _run_median(
+            input_queue: queue.Queue[str | None],
+            result_queue: queue.Queue[dict],
+        ) -> None:
+        # todo add docstring
+
+        TestSigmaClipping._run_process(
+            input_queue=input_queue,
+            result_queue=result_queue,
+            center='median',
         )
 
     @staticmethod
     def _run_process(
             input_queue: queue.Queue[str | None],
             result_queue: queue.Queue[dict],
+            center: str,
         ) -> None:
         """
         Old and new mean implementation test for sigma clipping.
@@ -57,6 +99,7 @@ class TestSigmaClipping:
         Args:
             input_queue (queue.Queue[str | None]): the input queue with the filepaths.
             result_queue (queue.Queue[dict]): the result queue to put the results in.
+            center (str): the center function to use ('mean' or 'median').
         """
 
         while True:
@@ -70,9 +113,9 @@ class TestSigmaClipping:
             old_result = sigma_clip(
                 data=data,
                 size=3,
-                sigma=.5,
+                sigma=2.,
                 max_iters=3,
-                center_func='median',
+                center_func=center,#type:ignore
                 masked=False,
             )
 
@@ -80,8 +123,8 @@ class TestSigmaClipping:
             fast_sigma_clipping = FastSigmaClipping(
                 data=data,
                 kernel=3,
-                center_choice='median',
-                sigma=.5,
+                center_choice=center,#type:ignore
+                sigma=2.,
                 max_iters=3,
                 masked_array=False,
             ).results

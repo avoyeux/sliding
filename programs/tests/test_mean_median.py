@@ -12,7 +12,7 @@ import pytest
 
 # IMPORTs local
 from programs.tests.utils_tests import TestUtils
-from programs.sigma_clipping import SlidingMean, SlidingMedian
+from programs.sigma_clipping import SlidingMean, SlidingMedian, FastStandardDeviation
 
 # TYPE ANNOTATIONs
 import queue
@@ -116,13 +116,20 @@ class TestMeanMedian:
             )
 
             # NEW mean
-            kernel = np.ones(kernel_size, dtype=data.dtype)
-            new_mean = SlidingMean(
+            # kernel = np.ones(kernel_size, dtype=data.dtype)
+            # new_mean = SlidingMean(
+            #     data=data,
+            #     kernel=kernel,
+            #     borders='reflect',
+            #     threads=1,
+            # ).mean
+
+            std_instance = FastStandardDeviation(
                 data=data,
-                kernel=kernel,
+                kernel=kernel_size,
                 borders='reflect',
-                threads=1,
-            ).mean
+            )
+            new_mean = std_instance.mean
 
             # Comparison
             comparison_log = TestUtils.compare(

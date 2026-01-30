@@ -55,10 +55,6 @@ fake_data = np.random.rand(36, 1024, 128).astype(np.float64)
 fake_data[10:15, 100:200, 50:75] = 1.3
 fake_data[7:, 40:60, 70:] = 1.7
 
-# NaNs add
-mask = np.random.rand(*fake_data.shape) < .05
-fake_data[mask] = np.nan
-
 # KERNEL
 kernel = np.ones((5,) * fake_data.ndim, dtype=fake_data.dtype)
 kernel[2, 2, 2] = 0.
@@ -69,7 +65,7 @@ mean = SlidingMean(
     kernel=kernel,
     borders='reflect',
     threads=1,
-)
+).mean
 ```
 
 ## IMPORTANT

@@ -75,13 +75,15 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
             self,
         ) -> tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], Array] | None:
         """
-        To get the mask of non nan values and the count of nan values for each sliding window.
+        To get the mask of non nan values and the weighted sum of non nan values for each sliding
+        window.
         Done so that the nan values can be swapped with 0. The result of the sliding mean is then
-        corrected with this count. If there is no NaN in the data, returns None.
+        corrected with this weighted sum. If there is no NaN in the data, returns None.
 
         Returns:
             tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], Array] | None: the mask of valid
-                data and the sliding window count of nan values.
+                data and the sliding window weighted sum of non-NaN values. If there is no NaN
+                in the data, returns None.
         """
 
         # TYPE CHECKER complains
@@ -91,15 +93,15 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
         if (isnan := np.isnan(self._data)).any():
             valid_mask = ~isnan
 
-            # COUNT NaN
-            count = Convolution(
+            # EFFECTIVE WEIGHT SUM (sum of kernel weights over non-NaN entries)
+            weight_sum = Convolution(
                 data=valid_mask.astype(self._data.dtype),
-                kernel=np.ones(self._kernel.shape, dtype=self._data.dtype),
+                kernel=self._kernel.astype(self._data.dtype),
                 borders=self._borders,
                 cval=1. if self._borders == 'constant' else 0.,
                 threads=self._threads,
             ).result
-            return valid_mask, count
+            return valid_mask, weight_sum
         return None
 
     def _sliding_mean(self) -> Data:
@@ -128,7 +130,7 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
             return means
 
         # NaN handling
-        valid_mask, count = with_NaNs
+        valid_mask, weighted_valid_sum = with_NaNs
 
         # NaN handling
         data_filled = np.where(valid_mask, self._data, 0.).astype(self._data.dtype)
@@ -141,5 +143,9 @@ class SlidingMean[Data: Array[np.floating[Any]]]:
             threads=self._threads,
         ).result
         with np.errstate(divide='ignore', invalid='ignore'):
-            means = np.where(count > 0, sum_values / count, 0.0).astype(self._data.dtype)
+            means = np.where(
+                weighted_valid_sum > 0,
+                sum_values / weighted_valid_sum,
+                0.0,
+            ).astype(self._data.dtype)
         return cast(Data, means)

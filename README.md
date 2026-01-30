@@ -26,7 +26,7 @@ source .venv/bin/activate
 or on Windows OS:
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate
+source .venv\Scripts\activate
 ```
 #### Install package in virtual environnement (or on bare-metal - wouldn't recommend):
 ```bash
@@ -77,17 +77,16 @@ deviation is numerically stable, there is still a need to do one squared operati
 the possibility to get a wrong standard deviation in really rare cases (from personal tests, with
 5000 FITs files - usual 2D but sometimes 3D data - had ~1 pixel out of 4 million that was wrong for
 ~5% of the images when using 'SlidingSigmaClipping' with float32 data).
-- **weights**: weighted kernels haven't yet been extensively tested. While I was able to properly
-test weights for 'Convolution' and 'SlidingMedian' I still haven't created a sure weighted kernel
-test for the other functions.
-- **'Borders=None'**: used when adaptative kernels are needed at the borders (i.e. borders are
-added as NaN values). While all the other border choices were extensively tested, I still wasn't
-able to properly test this option (do not know of any Python function that lets you do so).
 - **high memory usage**: while being numerically stable, the 'SlidingStandardDeviation'
 implementation does use a lot memory. Did use a buffer to minimize the memory allocations and usage.
 That being said, for a numerically stable standard deviation in python, the buffer is of size
 kernel.size * data.nbytes. E.g. for a 3x3x3 kernel (so 3D input data), 'SlidingStandardDeviation'
 uses at little over 27 times the memory usage than the initial input data.
+- **threads**: there is a threads argument for most of the classes. That being said, it is not
+as useful for 'SlidingSigmaClipping' given that 'SlidingStandardDeviation' does not use threads.
+The threads are for the opencv-python and numba libraries which are not used in the stable standard
+deviation computations. It is therefore recommended to use **threads=1** and do the multiprocessing
+at a higher level.
 - **Python3.12+**: because of the type annotations that I have used, the code only runs on Python
 3.12 or later. The actual computations need Python3.10+ (because of the := operator).
 

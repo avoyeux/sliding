@@ -2,10 +2,8 @@
 
 This python package contains utilities to compute a sliding sigma clipping, where the kernel can
 contain weights and the data can contain NaN values. \
-This package was created to have a relatively (compared to using scipy.ndimage.generic_filter) fast
-way of computing the sliding mean, sliding median, the sliding standard deviation and to apply
-a sliding sigma clipping to N-dimensional data (speed up of ~10/20 times depending on the input
-choices).
+This package was created to have a relatively (compared to using scipy.ndimage.generic_filter - c.f.
+**Speed up** section) fast way of computing the sliding mean, sliding median, the sliding standard deviation and to apply a sliding sigma clipping to N-dimensional data.
 
 
 ## Install package
@@ -95,3 +93,21 @@ at a higher level.
 To see what was actually tested, you can check the tests inside the 'tests' folder.
 
 For further information, look at the code. The code is extensively type annotated and all functions should have proper docstrings.
+
+## Speed up
+From personal tests, given the following configuration:
+- 1000 runs spread on 94 processes.
+- random input data of shape (36, 1024, 128) and dtype float64.
+- kernel 3 * 3 * 3 for all except the sigma clipping where it was 5 * 5 * 5
+- 5% of NaN values added to the initial random data.
+- max_iters of 3 with sigma=2. for the sigma clipping.
+
+The running times between using scipy.ndimage.generic_filter are:
+
+- sliding mean: 37.64 minutes to 0.30 minutes.
+- sliding median: 58.88 minutes to 2.57 minutes.
+- sliding standard deviation: from 85.33 minutes to 1.31 minutes.
+- sliding sigma clipping using the mean: from 384.45 minutes to 28.90 minutes.
+- sliding sigma clipping using the median: from 463.67 minutes to 25.27 minutes.
+
+Not sure how the ratios change for different dimensions and type of data.

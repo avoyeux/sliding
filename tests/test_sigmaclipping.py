@@ -9,7 +9,7 @@ import pytest
 
 # IMPORTs local
 from tests.utils import TestUtils, sigma_clip
-from sliding import SigmaClipping
+from sliding import SlidingSigmaClipping
 
 # TYPE ANNOTATIONs
 import queue
@@ -120,7 +120,7 @@ class TestSigmaClipping:
             )
 
             # NEW sigma clipping
-            fast_sigma_clipping = SigmaClipping(
+            fast_sigma_clipping = SlidingSigmaClipping(
                 data=data,
                 kernel=3,
                 center_choice=center,#type:ignore

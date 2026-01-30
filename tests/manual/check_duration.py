@@ -18,7 +18,7 @@ from multiprocessing import shared_memory
 
 # IMPORTs local
 from tests.utils import TestUtils, sigma_clip
-from sliding import SlidingStandardDeviation, SigmaClipping, SlidingMedian, SlidingMean
+from sliding import SlidingStandardDeviation, SlidingSigmaClipping, SlidingMedian, SlidingMean
 
 # TYPE ANNOTATIONs
 from typing import Callable, cast
@@ -310,7 +310,7 @@ class CheckTimes:
                 if counter.value <= 0: break
                 counter.value -= 1
 
-            _ = SigmaClipping(
+            _ = SlidingSigmaClipping(
                 data=data,
                 kernel=kernel,
                 center_choice='mean',
@@ -352,7 +352,7 @@ class CheckTimes:
                 if counter.value <= 0: break
                 counter.value -= 1
 
-            _ = SigmaClipping(
+            _ = SlidingSigmaClipping(
                 data=data,
                 kernel=kernel,
                 center_choice='median',
@@ -386,13 +386,13 @@ class CheckTimes:
 
 
 if __name__ == '__main__':
-    checker = CheckTimes(processes=94, jobs=750)
+    checker = CheckTimes(processes=94, jobs=1000)
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")
-    # checker.run_standard_deviation()
-    # checker.run_mean()
-    # checker.run_median()
+    checker.run_standard_deviation()
+    checker.run_mean()
+    checker.run_median()
     checker.run_sigma_clipping_mean()
     checker.run_sigma_clipping_median()
     end_time = time.time()

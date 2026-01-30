@@ -20,11 +20,11 @@ from typing import cast, Literal, overload
 type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
 
 # API public
-__all__ = ["SigmaClipping"]
+__all__ = ["SlidingSigmaClipping"]
 
 
 
-class SigmaClipping[Output: np.ndarray | ma.MaskedArray]:
+class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     """
     For a sliding sigma clip of an input array with a given kernel.
     Use the 'results' property to get the sigma clipped array.
@@ -41,7 +41,7 @@ class SigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload
     def __init__(
-            self: SigmaClipping[ma.MaskedArray],
+            self: SlidingSigmaClipping[ma.MaskedArray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
@@ -56,7 +56,7 @@ class SigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload
     def __init__(
-            self: SigmaClipping[np.ndarray],
+            self: SlidingSigmaClipping[np.ndarray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
@@ -72,7 +72,7 @@ class SigmaClipping[Output: np.ndarray | ma.MaskedArray]:
 
     @overload  #fallback
     def __init__(
-            self: SigmaClipping[np.ndarray | ma.MaskedArray],
+            self: SlidingSigmaClipping[np.ndarray | ma.MaskedArray],
             data: np.ndarray,
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',

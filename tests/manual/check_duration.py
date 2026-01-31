@@ -390,10 +390,10 @@ if __name__ == '__main__':
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")
-    checker.run_standard_deviation()
-    checker.run_mean()
+    # checker.run_standard_deviation()
+    # checker.run_mean()
     checker.run_median()
-    checker.run_sigma_clipping_mean()
+    # checker.run_sigma_clipping_mean()
     checker.run_sigma_clipping_median()
     end_time = time.time()
     total_duration = (end_time - start_time) / 60

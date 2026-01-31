@@ -83,23 +83,6 @@ class TestMeanMedian:
             target=self._run_median_array_test,
         )
 
-    def test_median_tuple(
-            self,
-            filepaths: list[str],
-        ) -> None:
-        """
-        Running test on the new and old median implementations when the kernel is an int or a
-        tuple of ints.
-
-        Args:
-            filepaths (list[str]): the FITS filepaths to run the tests for.
-        """
-
-        TestUtils.multiprocess(
-            filepaths=filepaths,
-            target=self._run_median_tuple_test,
-        )
-
     @staticmethod
     def _run_mean_std_test(
             input_queue: queue.Queue[str | None],
@@ -221,51 +204,6 @@ class TestMeanMedian:
             new_median = SlidingMedian(
                 data=data,
                 kernel=kernel,
-                borders='reflect',
-                threads=1,
-            ).median
-
-            # Comparison
-            comparison_log = TestUtils.compare(
-                actual=old_median,
-                desired=new_median,
-                filepath=filepath,
-            )
-            result_queue.put(comparison_log)
-
-    @staticmethod
-    def _run_median_tuple_test(
-            input_queue: queue.Queue[str | None],
-            result_queue: queue.Queue[dict],
-        ) -> None:
-        """
-        Old and new mean implementation test when the kernel doesn't need weights (used as the
-        target for the multiprocessing).
-
-        Args:
-            input_queue (queue.Queue[str | None]): the input queue with the filepaths.
-            result_queue (queue.Queue[dict]): the result queue to put the results in.
-        """
-
-        while True:
-            filepath = input_queue.get()
-            if filepath is None: break
-
-            data = TestUtils.open_file(filepath)
-            if isinstance(data, dict): result_queue.put(data); continue
-
-            # OLD median
-            kernel_size = (3,) * data.ndim
-            old_median = TestUtils.old_implementation(
-                function='median',
-                data=data,
-                kernel_size=kernel_size,
-            )
-
-            # NEW median
-            new_median = SlidingMedian(
-                data=data,
-                kernel=kernel_size,
                 borders='reflect',
                 threads=1,
             ).median

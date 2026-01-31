@@ -27,7 +27,9 @@ import queue
 
 TestUtils.ADD_NANS = False
 class TestWeightsNoNaNs:
-    # todo add docstring
+    """
+    To test if the sliding mean works as intended with weights but no NaNs in the data.
+    """
 
     @pytest.fixture(scope="class")
     def filepaths(self) -> list[str]:
@@ -96,7 +98,7 @@ class TestWeightsNoNaNs:
             if isinstance(data, dict): result_queue.put(data); continue
 
             kernel = np.ones((kernel_size,) * data.ndim, dtype=np.float64)
-            middle = tuple((ksize // 2) for ksize in kernel.shape)
+            middle = tuple((size // 2) for size in kernel.shape)
             kernel[middle] = 0.
 
             # NEW mean with weights
@@ -149,7 +151,7 @@ class TestWeightsNoNaNs:
             if isinstance(data, dict): result_queue.put(data); continue
 
             kernel = np.ones((kernel_size,) * data.ndim, dtype=np.float64)
-            middle = tuple((ksize // 2) for ksize in kernel.shape)
+            middle = tuple((size // 2) for size in kernel.shape)
             kernel[middle] = 0.
 
             # NEW mean with weights

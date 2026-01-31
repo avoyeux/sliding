@@ -66,7 +66,9 @@ class TestSigmaClipping:
             input_queue: queue.Queue[str | None],
             result_queue: queue.Queue[dict],
         ) -> None:
-        # todo add docstring
+        """
+        Runs the sigma clipping test for the mean center function.
+        """
 
         TestSigmaClipping._run_process(
             input_queue=input_queue,
@@ -79,7 +81,9 @@ class TestSigmaClipping:
             input_queue: queue.Queue[str | None],
             result_queue: queue.Queue[dict],
         ) -> None:
-        # todo add docstring
+        """
+        Runs the sigma clipping test for the median center function.
+        """
 
         TestSigmaClipping._run_process(
             input_queue=input_queue,

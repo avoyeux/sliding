@@ -1,6 +1,6 @@
 """
-Contains the code that needs testing to see if it can be used for SPICE (for moving sample
-standard deviation calculations).
+Code to compute the sliding standard deviation given data (with/without NaNs) and kernel
+(with/without weights).
 """
 from __future__ import annotations
 
@@ -20,39 +20,45 @@ from typing import Any
 # API public
 __all__ = ["SlidingStandardDeviation"]
 
+# todo rewrite the _check_kernel method to make it a little cleaner
 
 
-class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
+
+class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
     """
-    To compute the moving sample standard deviations using convolutions.
+    To compute the sliding standard deviations for data (with/without NaNs) using a kernel
+    (with/without weights).
+    The inputs need to be of np.floating type when using ndarrays (float64 recommended).
+    The kernel must have odd dimensions.
+    The sliding mean is also computed at the same time.
     """
 
     def __init__(
             self,
-            data: Array,
-            kernel: int | tuple[int, ...] | Array,
+            data: Data,
+            kernel: int | tuple[int, ...] | Data,
             borders: BorderType = 'reflect',
         ) -> None:
         """
-        Computes the moving sample standard deviations using convolutions.
+        Computes the sliding standard deviations for data (with/without NaNs) using a kernel
+        (with/without weights).
+        The inputs need to be of np.floating type when using ndarrays (float64 recommended).
+        The kernel must have odd dimensions.
         Given the way the standard deviation is computed (using a stable solution, c.f.
-        '_standard_deviation'), the sliding mean is also computed at the same time as an
+        '_get_standard_deviation'), the sliding mean is also computed at the same time as an
         intermediate step.
-        The size of each sample is defined by the kernel.
         To retrieve the computed standard deviations, use the 'standard_deviation' property.
         To retrieve the computed sliding mean, use the 'mean' property.
-        NaN handling is done.
-        ! IMPORTANT: the kernel size must be odd and of the same dimensionality as the input array.
-        ! IMPORTANT: recommended to use float64 even if float32 is supported. 
 
         Args:
-            data (Array): the data for which the moving sample standard deviations are computed.
+            data (Data): the data for which the sliding standard deviations is computed.
                 Needs to be a numpy ndarray of the same floating type than the kernel (if given as
                 a numpy ndarray).
-            kernel (int, tuple[int, ...] | Array): the kernel information. If an int, you have a
+            kernel (int, tuple[int, ...] | Data): the kernel information. If an int, you have a
                 'square' kernel. If a tuple, you are deciding on the shape of the kernel. If a
                 numpy ndarray, you are giving the full kernel (can contain different weights). Keep
                 in mind that the kernel should have the same dimensions and dtype as the data.
+                Furthermore, all kernel dimensions must be positive odd integers.
             borders (BorderType, optional): the type of borders to use. These are the type of
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't have
                 the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
@@ -60,82 +66,76 @@ class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
         """
 
         self._data = data
+        self._kernel = self._check_kernel(kernel)
         self._borders = borders
 
-        # CHECK kernel
-        self._kernel = self._check_kernel(kernel)
-
         # RUN
-        self._mean, self._sdev = self._standard_deviation()
+        self._mean, self._standard_deviation = self._get_standard_deviation()
 
     @property
-    def standard_deviation(self) -> Array:
+    def standard_deviation(self) -> Data:
         """
-        Returns the moving sample standard deviations.
+        Returns the sliding standard deviations.
 
         Returns:
-            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample standard
-                deviations.
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the sliding standard deviation.
         """
-        return self._sdev
+        return self._standard_deviation
 
     @property
-    def mean(self) -> Array:
+    def mean(self) -> Data:
         """
-        Returns the moving sample means.
+        Returns the sliding mean.
 
         Returns:
-            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample means.
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the sliding mean.
         """
         return self._mean
 
-    def _check_kernel(self, kernel: int | tuple[int, ...] | np.ndarray) -> np.ndarray:
+    def _check_kernel(self, kernel: int | tuple[int, ...] | Data) -> Data:
         """
-        To check and create the kernel as a numpy array if needed.
+        To check the input kernel shape, type and convert it to an ndarray if needed.
 
         Args:
-            kernel (int | tuple[int, ...] | np.ndarray): the kernel.
+            kernel (int | tuple[int, ...] | Data): the kernel to check.
 
         Raises:
-            ValueError: if the kernel does not match data dimensions.
-            TypeError: if the kernel type is not supported.
+            TypeError: if the kernel is not an int, a tuple of ints or an ndarray.
+            ValueError: if the kernel shape is not composed of positive odd integers or if the
+                kernel dimensions do not match the data dimensions.
 
         Returns:
-            np.ndarray: the kernel as a numpy array.
+            Data: the kernel as an ndarray.
         """
 
-        if isinstance(kernel, np.ndarray):
-            if kernel.ndim != self._data.ndim:
+        if isinstance(kernel, int):
+            if kernel <=0 or kernel % 2 == 0:
+                raise ValueError("The kernel size must be a positive odd integer.")
+            return np.ones((kernel,) * self._data.ndim, dtype=self._data.dtype)#type:ignore
+        elif isinstance(kernel, tuple):
+            if any(k <=0 or k % 2 == 0 for k in kernel):
+                raise ValueError("All kernel dimensions must be positive odd integers.")
+            elif len(kernel) != self._data.ndim:
+                raise ValueError(
+                    "If 'kernel' is given as a tuple, it must have the same number of "
+                    "dimensions as 'data'."
+                )
+            return np.ones(kernel, dtype=self._data.dtype)#type:ignore
+        elif isinstance(kernel, np.ndarray):
+            if any(s <=0 or s % 2 == 0 for s in kernel.shape):
+                raise ValueError("All kernel dimensions must be positive odd integers.")
+            elif kernel.ndim != self._data.ndim:
                 raise ValueError(
                     "If 'kernel' is given as a numpy ndarray, it must have the same number of "
                     "dimensions as 'data'."
                 )
-            if np.isnan(kernel).any():
-                raise ValueError("The kernel numpy ndarray must not contain any NaN values.")
-            return kernel / kernel.sum()
-        elif isinstance(kernel, tuple):
-            if len(kernel) != self._data.ndim:
-                raise ValueError(
-                    "If 'kernel' is given as a tuple, it must have the same number of elements "
-                    "as 'data' has dimensions."
-                )
-            if not all(isinstance(k, int) for k in kernel):
-                raise TypeError("All elements of 'kernel' tuple must be of type int.")
-            return np.ones(kernel, dtype=self._data.dtype) / np.prod(kernel)
-        elif isinstance(kernel, int):
-            normalised = (
-                np.ones((kernel,) * self._data.ndim, dtype=self._data.dtype) /
-                (kernel ** self._data.ndim)
-            )
-            return normalised
+            return kernel
         else:
-            raise TypeError(
-                "'kernel' must be an int, a tuple of ints, or a numpy ndarray."
-            )
+            raise TypeError("The kernel must be an integer, a tuple of integers or an ndarray.")
 
-    def _standard_deviation(self) -> tuple[Array, Array]:
+    def _get_standard_deviation(self) -> tuple[Data, Data]:
         """
-        Computes the sliding standard deviation using the same equation than in Welford.
+        Computes the sliding standard deviation using a numerically stable solution.
         Given the operation done, the sliding mean is also computed at the same time.
 
         Operation done is basically:
@@ -143,6 +143,7 @@ class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
             * mean = sum(data) / n
             * variance = sum((x - mean) ** 2 for x in data) / (n - 1)
             * std = sqrt(variance)
+
         Of course, computations are done using arrays and sliding windows to do the 'for x in data'
         part as data is defined by a kernel / is a window.
         Furthermore, conditional operations are added to take care of NaN values in the data (or 
@@ -151,7 +152,7 @@ class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
         (still high because at least one full sliding window view buffer needs to be used).
 
         Returns:
-            tuple[Array, Array]: the sliding mean and standard deviation.
+            tuple[Data, Data]: the sliding mean and standard deviation.
         """
 
         # PAD data
@@ -224,71 +225,3 @@ class SlidingStandardDeviation[Array: npt.NDArray[np.floating[Any]]]:
         with np.errstate(divide="ignore", invalid="ignore"):
             std = np.where(count > 0, np.sqrt(M2 / count), 0.0).astype(self._data.dtype)
         return mean, std#type:ignore
-
-    # def _sdev_loc_old(self) -> Array:  # ! problems with low values
-    #     """
-    #     Computes the moving sample standard deviations. The size of each sample is defined by the
-    #     kernel (square with a length of 'size').
-
-    #     Returns:
-    #         np.ndarray[tuple[int, ...], np.dtype[np.floating]]: Array of moving sample standard
-    #             deviations.
-    #     """
-
-    #     if (nan_mask := np.isnan(self._data)).any():
-    #         # INSTABILITY helper
-    #         global_median = np.nanmedian(self._data)
-    #         shifted_data = self._data - global_median
-
-    #         # VALID (non-NaN)
-    #         valid_mask = ~nan_mask
-    #         data_filled = np.where(valid_mask, shifted_data, 0.).astype(self._data.dtype)
-
-    #         # SUM n MEAN
-    #         sum_values = Convolution(
-    #             data=data_filled,
-    #             kernel=self._kernel,
-    #             borders=self._borders,#type:ignore
-    #             threads=self._threads
-    #         ).result
-    #         sum_squares = Convolution(
-    #             data=data_filled ** 2,#type:ignore
-    #             kernel=self._kernel,
-    #             borders=self._borders,#type:ignore
-    #             threads=self._threads,
-    #         ).result
-    #         count = Convolution(
-    #             data=valid_mask.astype(self._data.dtype),
-    #             kernel=self._kernel,
-    #             borders=self._borders,#type:ignore
-    #             threads=self._threads,
-    #         ).result
-    #         with np.errstate(divide='ignore', invalid='ignore'):
-    #             mean = np.where(count > 0, sum_values / count, 0.0)
-    #             mean_sq = np.where(count > 0, sum_squares / count, 0.0)
-
-    #         # STD
-    #         variance = mean_sq - mean ** 2
-    #         variance = np.maximum(variance, 0.0)
-    #         return np.sqrt(variance)#type:ignore
-    #     else:
-    #         # INSTABILITY helper
-    #         global_median = np.median(self._data)
-    #         shifted_data = self._data - global_median
-
-    #         # STD
-    #         mean2 = Convolution(
-    #             data=shifted_data,
-    #             kernel=self._kernel,
-    #             borders=self._borders,#type:ignore
-    #             threads=self._threads
-    #         ).result ** 2
-    #         variance = Convolution(
-    #             data=shifted_data ** 2,
-    #             kernel=self._kernel,
-    #             borders=self._borders,#type:ignore
-    #             threads=self._threads,
-    #         ).result
-    #         variance -= mean2
-    #         variance = np.maximum(variance, 0.0)
-    #         return np.sqrt(variance)#type:ignore

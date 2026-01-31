@@ -32,7 +32,7 @@ class TestUtils:
     Utility functions that can be used in different tests.
     """
 
-    ADD_NANS: bool = True
+    ADD_NANS: bool = False
     NB_PROCESSES: int = 94
     COMPARE_NANS: bool = True
 

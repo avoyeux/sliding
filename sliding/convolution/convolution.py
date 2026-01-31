@@ -1,6 +1,8 @@
 """
-Code to calculate the sliding mean using a convolution.
-This code is Dr. Auchere's implementation of the sliding mean.
+Code to compute the convolution of a given ndarray data (without NaNs) and kernel (with/without
+weights).
+This code was initially based on Dr. Auchere's implementation of the sliding mean (the 2D and 3D
+versions used when the kernel is contains uniform weights).
 """
 from __future__ import annotations
 

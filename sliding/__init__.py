@@ -1,6 +1,6 @@
 """
 Directory contains code to perform n-dimensional sliding mean, median, standard deviation,
-and sigma clipping on numpy arrays.
+and sigma clipping on numpy arrays (with/without NaNs) given a kernel (with/without weights).
 """
 
 from sliding.convolution import BorderType, Convolution, Padding

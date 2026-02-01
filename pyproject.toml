@@ -3,8 +3,8 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sigma-clipping"
-version = "0.1.0"
+name = "sliding"
+version = "1.0.0"
 description = "Sliding sigma-clipping, mean, median and standard deviation utilities."
 authors = [
     { name = "Voyeux Alfred", email = "voyeuxalfred@gmail.com" },
@@ -23,4 +23,4 @@ dependencies = [
 package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
-include = ["sliding*"]
+where = ["src"]

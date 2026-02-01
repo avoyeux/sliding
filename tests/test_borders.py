@@ -14,10 +14,12 @@ from scipy.ndimage import generic_filter
 
 # IMPORTs local
 from tests.utils import TestUtils
-from sliding import SlidingMean  # ? change it to .mean from standard deviation ?
+from sliding import SlidingMean
 
 # TYPE ANNOTATIONs
 import queue
+
+# ! Borders set to None cannot be tested with scipy's generic_filter.
 
 
 
@@ -75,19 +77,6 @@ class TestBorders:
             target=self._run_replicate,
         )
 
-    # def test_borders_none(
-    #         self,
-    #         filepaths: list[str],
-    #     ) -> None:
-    #     """
-    #     To test if the border cases are handled the same way between np.pad and cv2.
-    #     """
-
-    #     TestUtils.multiprocess(
-    #         filepaths=filepaths,
-    #         target=self._run_none,
-    #     )
-
     @staticmethod
     def _run_reflect(
             input_queue: queue.Queue[str | None],
@@ -135,22 +124,6 @@ class TestBorders:
             input_queue=input_queue,
             result_queue=result_queue,
         )
-
-    # @staticmethod
-    # def _run_none(
-    #         input_queue: queue.Queue[str | None],
-    #         result_queue: queue.Queue[dict],
-    #     ) -> None:
-    #     """
-    #     To test the 'none' border option.
-    #     """
-
-    #     border = None
-    #     TestBorders._run_process(
-    #         border=border,
-    #         input_queue=input_queue,
-    #         result_queue=result_queue,
-    #     )
 
     @staticmethod
     def _run_process(

@@ -13,7 +13,7 @@ repository and then install it using the 'pyproject.toml' file, i.e.
 
 #### Get the code:
 ```bash
-git clone https://github.com/avoyeux/sigma_clipping_tests.git
+git clone https://github.com/avoyeux/sliding.git
 cd sigma_clipping_tests
 ```
 #### (**OPTIONAL**) Create and activate a python virtual environnement:

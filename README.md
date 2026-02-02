@@ -72,9 +72,7 @@ Before using this package some information is needed:
 
 - **float64** values for the data (recommended): While the formula used for the standard
 deviation is numerically stable, there is still a need to do one squared operation. Hence, there is
-the possibility to get a wrong standard deviation in really rare cases (from personal tests, with
-5000 FITs files - usual 2D but sometimes 3D data - had ~1 pixel out of 4 million that was wrong for
-~5% of the images when using 'SlidingSigmaClipping' with float32 data).
+the possibility to get a wrong standard deviation.
 - **high memory usage**: while being numerically stable, the 'SlidingStandardDeviation'
 implementation does use a lot memory. Did use a buffer to minimize the memory allocations and usage.
 That being said, for a numerically stable standard deviation in python, the buffer is of size
@@ -96,18 +94,18 @@ For further information, look at the code. The code is extensively type annotate
 
 ## Speed up
 From personal tests, given the following configuration:
-- 1000 runs spread on 94 processes.
+- 2500 runs spread on 94 processes.
 - random input data of shape (36, 1024, 128) and dtype float64.
-- kernel 3 * 3 * 3 for all except the sigma clipping where it was 5 * 5 * 5
+- kernel 3 * 3 * 3 for all.
 - 5% of NaN values added to the initial random data.
 - max_iters of 3 with sigma=2. for the sigma clipping.
 
-The running times between using scipy.ndimage.generic_filter are:
+The running times compared to using scipy.ndimage.generic_filter are:
 
-- sliding mean: 37.64 minutes to 0.30 minutes.
-- sliding median: 58.88 minutes to 2.57 minutes.
-- sliding standard deviation: from 85.33 minutes to 1.31 minutes.
-- sliding sigma clipping using the mean: from 384.45 minutes to 28.90 minutes.
-- sliding sigma clipping using the median: from 463.67 minutes to 25.27 minutes.
+- sliding mean: 94.17 minutes to 0.71 minutes (~ x132).
+- sliding median: 148.43 minutes to 4.82 minutes (~ x31).
+- sliding standard deviation: from 212.14 minutes to 3.07 minutes (~ x69).
+- sliding sigma clipping using the mean: from xxx minutes to 9.64 minutes.
+- sliding sigma clipping using the median: from xxx minutes to xxx minutes.
 
 Not sure how the ratios change for different dimensions and type of data.

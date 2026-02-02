@@ -303,7 +303,7 @@ class CheckTimes:
     def _worker_new_sigma_clipping_mean(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
-        kernel = 5
+        kernel = 3
 
         while True:
             with lock:
@@ -324,7 +324,7 @@ class CheckTimes:
     def _worker_old_sigma_clipping_mean(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
-        kernel = 5
+        kernel = 3
 
         while True:
             with lock:
@@ -345,7 +345,7 @@ class CheckTimes:
     def _worker_new_sigma_clipping_median(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
-        kernel = 5
+        kernel = 3
 
         while True:
             with lock:
@@ -366,7 +366,7 @@ class CheckTimes:
     def _worker_old_sigma_clipping_median(counter: CounterType, lock: LockType, shared: dict) -> None:
 
         shm, data = CheckTimes._open_shared_memory(shared)
-        kernel = 5
+        kernel = 3
 
         while True:
             with lock:
@@ -386,14 +386,14 @@ class CheckTimes:
 
 
 if __name__ == '__main__':
-    checker = CheckTimes(processes=94, jobs=1000)
+    checker = CheckTimes(processes=94, jobs=2500)
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")
-    # checker.run_standard_deviation()
-    # checker.run_mean()
+    checker.run_mean()
     checker.run_median()
-    # checker.run_sigma_clipping_mean()
+    checker.run_standard_deviation()
+    checker.run_sigma_clipping_mean()
     checker.run_sigma_clipping_median()
     end_time = time.time()
     total_duration = (end_time - start_time) / 60

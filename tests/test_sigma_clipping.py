@@ -113,10 +113,17 @@ class TestSigmaClipping:
             data = TestUtils.open_file(filepath)
             if isinstance(data, dict): result_queue.put(data); continue
 
+            if data.ndim == 2:
+                kernel = (3, 5)
+            if data.ndim == 3:
+                kernel = (3, 5, 7)
+            else:
+                kernel = 3
+
             # OLD sigma clipping
             old_result = sigma_clip(
                 data=data,
-                size=3,
+                size=kernel,
                 sigma=2.,
                 max_iters=3,
                 center_func=center,#type:ignore
@@ -126,7 +133,7 @@ class TestSigmaClipping:
             # NEW sigma clipping
             fast_sigma_clipping = SlidingSigmaClipping(
                 data=data,
-                kernel=3,
+                kernel=kernel,
                 center_choice=center,#type:ignore
                 sigma=2.,
                 max_iters=3,

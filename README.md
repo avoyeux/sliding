@@ -14,7 +14,7 @@ repository and then install it using the 'pyproject.toml' file, i.e.
 #### Get the code:
 ```bash
 git clone https://github.com/avoyeux/sliding.git
-cd sigma_clipping_tests
+cd sliding
 ```
 #### (**OPTIONAL**) Create and activate a python virtual environnement:
 ```bash
@@ -108,4 +108,6 @@ The running times compared to using scipy.ndimage.generic_filter are:
 - sliding sigma clipping using the mean: from xxx minutes to 9.64 minutes.
 - sliding sigma clipping using the median: from xxx minutes to xxx minutes.
 
-Not sure how the ratios change for different dimensions and type of data.
+Not sure how the ratios change for different dimensions and type of data. I seem to remember that the ratio
+is smaller when the kernel is bigger (most likely because of the memory usage). Cannot promise it
+though.

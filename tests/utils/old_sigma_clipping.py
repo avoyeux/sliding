@@ -38,8 +38,8 @@ def _get_numpy_function(data: np.ndarray, name: str) -> Callable[..., np.ndarray
     if np.isnan(data).any(): name = "nan" + name
     return getattr(np, name)
 
-def sigma_clip[T: np.ndarray](
-        data: T,
+def sigma_clip(
+        data: np.ndarray,
         size: int | tuple[int, ...],
         sigma: float = 3,
         sigma_lower: float | None = None,
@@ -47,7 +47,7 @@ def sigma_clip[T: np.ndarray](
         max_iters: int | None = 5,
         center_func: Literal['median', 'mean'] = 'median',
         masked: bool = True,
-    ) -> T | ma.MaskedArray:
+    ) -> np.ndarray | ma.MaskedArray:
     """
     Performs sigma-clipping of the input array.
 
@@ -73,7 +73,7 @@ def sigma_clip[T: np.ndarray](
 
     Returns
     -------
-    numpy.ndarray
+    numpy.ndarray | ma.MaskedArray
         Filtered array, with clipped pixels replaced by the estimated value of the center of the
         local intensity distribution (either median or mean).
     """

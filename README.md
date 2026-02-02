@@ -83,14 +83,12 @@ as useful for 'SlidingSigmaClipping' given that 'SlidingStandardDeviation' does 
 The threads are for the opencv-python and numba libraries which are not used in the stable standard
 deviation computations. It is therefore recommended to use **threads=1** and do the multiprocessing
 at a higher level.
-- **Python3.12+**: because of the type annotations that I have used, the code only runs on Python
-3.12 or later. The actual computations need Python3.10+ (because of the := operator).
 
 
 ## Tests
 To see what was actually tested, you can check the tests inside the 'tests' folder.
 
-For further information, look at the code. The code is extensively type annotated and all functions should have proper docstrings.
+For further information, look at the code. The code is type annotated and all functions should have proper docstrings.
 
 ## Speed up
 From personal tests, given the following configuration:

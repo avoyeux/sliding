@@ -13,18 +13,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 # IMPORTs local
 from sliding.convolution import BorderType, Padding
 
-# TYPE ANNOTATIONs
-import numpy.typing as npt
-from typing import Any
-
 # API public
 __all__ = ["SlidingStandardDeviation"]
 
-# todo rewrite the _check_kernel method to make it a little cleaner
 
 
-
-class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
+class SlidingStandardDeviation:
     """
     To compute the sliding standard deviations for data (with/without NaNs) using a kernel
     (with/without weights).
@@ -35,8 +29,8 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
 
     def __init__(
             self,
-            data: Data,
-            kernel: int | tuple[int, ...] | Data,
+            data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
+            kernel: int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]],
             borders: BorderType = 'reflect',
         ) -> None:
         """
@@ -51,14 +45,16 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         To retrieve the computed sliding mean, use the 'mean' property.
 
         Args:
-            data (Data): the data for which the sliding standard deviations is computed.
-                Needs to be a numpy ndarray of the same floating type than the kernel (if given as
+            data (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the data for which the
+                sliding standard deviations is computed. Needs to be a numpy ndarray of the same
+                floating type than the kernel (if given as
                 a numpy ndarray).
-            kernel (int, tuple[int, ...] | Data): the kernel information. If an int, you have a
-                'square' kernel. If a tuple, you are deciding on the shape of the kernel. If a
-                numpy ndarray, you are giving the full kernel (can contain different weights). Keep
-                in mind that the kernel should have the same dimensions and dtype as the data.
-                Furthermore, all kernel dimensions must be positive odd integers.
+            kernel (int, tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the
+                kernel information. If an int, you have a 'square' kernel. If a tuple, you are
+                deciding on the shape of the kernel. If a numpy ndarray, you are giving the full
+                kernel (can contain different weights). Keep in mind that the kernel should have
+                the same dimensions and dtype as the data. Furthermore, all kernel dimensions must
+                be positive odd integers.
             borders (BorderType, optional): the type of borders to use. These are the type of
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't have
                 the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders, i.e.
@@ -73,7 +69,7 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         self._mean, self._standard_deviation = self._get_standard_deviation()
 
     @property
-    def standard_deviation(self) -> Data:
+    def standard_deviation(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         Returns the sliding standard deviations.
 
@@ -83,7 +79,7 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         return self._standard_deviation
 
     @property
-    def mean(self) -> Data:
+    def mean(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         Returns the sliding mean.
 
@@ -92,12 +88,12 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         """
         return self._mean
 
-    def _check_kernel(self, kernel: int | tuple[int, ...] | Data) -> Data:
+    def _check_kernel(self, kernel: int | tuple[int, ...] | np.ndarray) -> np.ndarray:
         """
         To check the input kernel shape, type and convert it to an ndarray if needed.
 
         Args:
-            kernel (int | tuple[int, ...] | Data): the kernel to check.
+            kernel (int | tuple[int, ...] | np.ndarray): the kernel to check.
 
         Raises:
             TypeError: if the kernel is not an int, a tuple of ints or an ndarray.
@@ -105,7 +101,7 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
                 kernel dimensions do not match the data dimensions.
 
         Returns:
-            Data: the kernel as an ndarray.
+            np.ndarray: the kernel as an ndarray.
         """
 
         if isinstance(kernel, int):
@@ -133,7 +129,7 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         else:
             raise TypeError("The kernel must be an integer, a tuple of integers or an ndarray.")
 
-    def _get_standard_deviation(self) -> tuple[Data, Data]:
+    def _get_standard_deviation(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the sliding standard deviation using a numerically stable solution.
         Given the operation done, the sliding mean is also computed at the same time.
@@ -152,7 +148,7 @@ class SlidingStandardDeviation[Data: npt.NDArray[np.floating[Any]]]:
         (still high because at least one full sliding window view buffer needs to be used).
 
         Returns:
-            tuple[Data, Data]: the sliding mean and standard deviation.
+            tuple[np.ndarray, np.ndarray]: the sliding mean and standard deviation.
         """
 
         # PAD data

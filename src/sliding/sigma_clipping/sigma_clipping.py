@@ -17,8 +17,8 @@ from sliding.mode import SlidingMedian
 from sliding.standard_deviation import SlidingStandardDeviation
 
 # TYPE ANNOTATIONs
-from typing import cast, Literal, overload
-type KernelType = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
+from typing import cast, Literal, TypeAlias
+KernelType: TypeAlias = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]
 
 # API public
 __all__ = ["SlidingSigmaClipping"]
@@ -26,7 +26,8 @@ __all__ = ["SlidingSigmaClipping"]
 # todo test the code on 1D data.
 
 
-class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
+
+class SlidingSigmaClipping:
     """
     For a n-dimensional sliding sigma clip of an input array (with/without NaNs) with a given
     kernel (with/without weights).
@@ -36,52 +37,6 @@ class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
     Raises:
         ValueError: if the kernel size is even.
     """
-
-    @overload
-    def __init__(
-            self: SlidingSigmaClipping[ma.MaskedArray],
-            data: np.ndarray,
-            kernel: KernelType = 3,
-            center_choice: Literal['median', 'mean'] = 'median',
-            sigma: float = 3.,
-            sigma_lower: float | None = None,
-            sigma_upper: float | None = None,
-            max_iters: int | None = 5,
-            borders: BorderType = 'reflect',
-            threads: int | None = 1,
-            masked_array: Literal[True] = True,
-        ) -> None: ...
-
-    @overload
-    def __init__(
-            self: SlidingSigmaClipping[np.ndarray],
-            data: np.ndarray,
-            kernel: KernelType = 3,
-            center_choice: Literal['median', 'mean'] = 'median',
-            sigma: float = 3.,
-            sigma_lower: float | None = None,
-            sigma_upper: float | None = None,
-            max_iters: int | None = 5,
-            borders: BorderType = 'reflect',
-            threads: int | None = 1,
-            *,
-            masked_array: Literal[False],
-        ) -> None: ...
-
-    @overload  #fallback
-    def __init__(
-            self: SlidingSigmaClipping[np.ndarray | ma.MaskedArray],
-            data: np.ndarray,
-            kernel: KernelType = 3,
-            center_choice: Literal['median', 'mean'] = 'median',
-            sigma: float = 3.,
-            sigma_lower: float | None = None,
-            sigma_upper: float | None = None,
-            max_iters: int | None = 5,
-            borders: BorderType = 'reflect',
-            threads: int | None = 1,
-            masked_array: bool = True,
-        ) -> None: ...
 
     def __init__(
             self,
@@ -148,7 +103,7 @@ class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         self._sigma_clipped = self._run()
 
     @property
-    def results(self) -> Output:
+    def results(self) -> np.ndarray | ma.MaskedArray:
         """
         The sigma clipped input where the pixels that where flagged are set to the mode value
         (median or mean) gotten for that pixel.
@@ -156,11 +111,11 @@ class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         ones that were flagged during the sigma clipping process. Else, it's a normal ndarray.
 
         Returns:
-            Output: the sigma clipped data.
+            np.ndarray | ma.MaskedArray: the sigma clipped data.
         """
         return self._sigma_clipped
 
-    def _run(self) -> Output:
+    def _run(self) -> np.ndarray | ma.MaskedArray:
         """
         Runs the sigma clipping code where flagged pixels are set to the mode value gotten for that
         pixel (and after all iterations are done).
@@ -170,7 +125,7 @@ class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         ones that were flagged during the sigma clipping process.
 
         Returns:
-            Output: the sigma clipped data.
+            np.ndarray | ma.MaskedArray: the sigma clipped data.
         """
 
         output = self._data.copy()
@@ -220,5 +175,5 @@ class SlidingSigmaClipping[Output: np.ndarray | ma.MaskedArray]:
         # FILTER NaNs
         isnan = np.isnan(output)
         output[isnan] = mode[isnan]
-        if self._masked_array: return cast(Output, ma.masked_array(output, mask=isnan))
-        return cast(Output, output)
+        if self._masked_array: return ma.masked_array(output, mask=isnan)
+        return output

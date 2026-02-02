@@ -24,7 +24,7 @@ __all__ = ["Convolution"]
 
 
 
-class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
+class Convolution:
     """
     To compute the convolution between an array and a kernel.
     No NaN handling is done.
@@ -38,8 +38,8 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
 
     def __init__(
             self,
-            data: Data,
-            kernel: Data,
+            data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
+            kernel: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
             borders: BorderType = 'reflect',
             cval: float = 0.,
             threads: int | None = 1,
@@ -50,8 +50,9 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
         No NaN handling is done.
 
         Args:
-            data (Data): the data to convolve.
-            kernel (Data: the kernel to use for the convolution.
+            data (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the data to convolve.
+            kernel (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the kernel to use for the
+                convolution.
             borders (BorderType, optional): the type of borders to use. These are the type of
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't
                 have the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders,
@@ -64,7 +65,7 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
 
         self._borders = borders
         self._input_dtype = data.dtype
-        self._data: Data = data.copy()
+        self._data = data.copy()
         self._kernel = kernel
         self._cval = cval
 
@@ -73,12 +74,13 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
             with threadpool_limits(limits=threads): self._run()
 
     @property
-    def result(self) -> Data:
+    def result(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         Gives the result of the convolution between the data and the kernel.
 
         Returns:
-            Data: the result of the convolution. Has the same shape and type as the input array.
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the result of the convolution. Has
+                the same shape and type as the input array.
         """
 
         if self._data.dtype != self._input_dtype:
@@ -182,16 +184,16 @@ class Convolution[Data: np.ndarray[tuple[int, ...], np.dtype[np.floating]]]:
             # NORMALISATION
             self._data /= counts#type:ignore
 
-    def _convolve(self, data: Data, borders: str, output: Data | None = None) -> None:
+    def _convolve(self, data: np.ndarray, borders: str, output: np.ndarray | None = None) -> None:
         """
         Does the convolution of the data with a given kernel and border choice.
         If 'output' is None, 'data' is changed in place.
 
         Args:
-            data (Data): the data to convolve.
+            data (np.ndarray): the data to convolve.
             borders (str): the type of borders to use.
-            output (Data | None, optional): the array to store the result. If None, modifies 'data'
-                in place. Defaults to None.
+            output (np.ndarray | None, optional): the array to store the result. If None, modifies
+                'data' in place. Defaults to None.
         """
 
         if output is None: output = data

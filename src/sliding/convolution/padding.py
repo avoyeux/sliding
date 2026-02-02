@@ -7,16 +7,15 @@ from __future__ import annotations
 import numpy as np
 
 # TYPE ANNOTATIONs
-from typing import Literal, Any, cast
-import numpy.typing as npt
-type BorderType = Literal['reflect', 'constant', 'replicate'] | None
+from typing import Literal, cast, TypeAlias
+BorderType: TypeAlias = Literal['reflect', 'constant', 'replicate'] | None
 
 # API public
 __all__ = ['BorderType', 'Padding']
 
 
 
-class Padding[Data: npt.NDArray[np.floating[Any]]]:
+class Padding:
     """
     To add padding to data according to the border type.
     The border type follows the cv2.filter2D border naming convention.
@@ -24,7 +23,7 @@ class Padding[Data: npt.NDArray[np.floating[Any]]]:
 
     def __init__(
             self,
-            data: Data,
+            data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
             kernel: tuple[int, ...],
             borders: BorderType = 'reflect',
         ) -> None:
@@ -35,7 +34,7 @@ class Padding[Data: npt.NDArray[np.floating[Any]]]:
         To get the padded data, use the 'padded' property.
 
         Args:
-            data (Data): the data to pad.
+            data (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the data to pad.
             kernel (tuple[int, ...]): the kernel size used for the convolution.
             borders (BorderType, optional): the border type to use for padding.
                 Defaults to 'reflect'.
@@ -49,12 +48,12 @@ class Padding[Data: npt.NDArray[np.floating[Any]]]:
         self._padded_data = self._add_padding()
 
     @property
-    def padded(self) -> Data:
+    def padded(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         The padded data using np.pad and the borders choice.
 
         Returns:
-            Data: the padded data.
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the padded data.
         """
         return self._padded_data
 
@@ -92,7 +91,7 @@ class Padding[Data: npt.NDArray[np.floating[Any]]]:
             raise ValueError(f"Unknown border type: {self._borders}")
         return result
 
-    def _add_padding(self) -> Data:
+    def _add_padding(self) -> np.ndarray:
         """
         To add padding to the given data according to the border type.
 
@@ -129,4 +128,4 @@ class Padding[Data: npt.NDArray[np.floating[Any]]]:
                 pad_width=pad,
                 mode=cast(Literal['edge'], padding_mode),
             )
-        return cast(Data, padded)
+        return padded

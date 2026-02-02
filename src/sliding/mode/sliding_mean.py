@@ -5,20 +5,19 @@ from __future__ import annotations
 
 # IMPORTs alias
 import numpy as np
-import numpy.typing as npt
 
 # IMPORTs local
 from sliding.convolution import BorderType, Convolution
 
 # TYPE ANNOTATIONs
-from typing import cast, Any
+from typing import cast
 
 # API public
 __all__ = ["SlidingMean"]
 
 
 
-class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
+class SlidingMean:
     """
     To compute the sliding mean of a given ndarray data and kernel.
     The inputs should be of float32 or float64 type.
@@ -29,8 +28,8 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
 
     def __init__(
         self,
-        data: Data,
-        kernel: int | tuple[int, ...] | Data,
+        data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
+        kernel: int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]],
         borders: BorderType = "reflect",
         threads: int | None = 1,
     ) -> None:
@@ -42,11 +41,12 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
         ! make sure that the kernel and data have the same dtype to avoid unwanted behaviors.
 
         Args:
-            data (Data): the input data to compute the sliding mean from. Needs to be of float32
-                or float64 type.
-            kernel (int | tuple[int, ...] | Data): the kernel to use for the sliding mean
-                computation. Can contain weights. If a numpy array, use the same dtype as the input
-                data. The kernel dimensions must be positive odd integers.
+            data (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the input data to compute
+                the sliding mean from. Needs to be of float32 or float64 type.
+            kernel (int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]):
+                the kernel to use for the sliding mean computation. Can contain weights. If a numpy
+                array, use the same dtype as the input data. The kernel dimensions must be positive
+                odd integers.
             borders (BorderType, optional): the type of borders to use. These are the type of
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't
                 have the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders,
@@ -65,23 +65,23 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
         self._mean = self._sliding_mean()
 
     @property
-    def mean(self) -> Data:
+    def mean(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         The sliding mean.
         Please do make sure that the kernel and input data have the same dtype as to not create
         unwanted behaviors.
 
         Returns:
-            Data: the sliding mean result.
+            np.ndarray[tuple[int, ...], np.dtype[np.floating]]: the sliding mean result.
         """
         return self._mean
 
-    def _check_kernel(self, kernel: int | tuple[int, ...] | Data) -> Data:
+    def _check_kernel(self, kernel: int | tuple[int, ...] | np.ndarray) -> np.ndarray:
         """
         To check the input kernel shape, type and convert it to an ndarray if needed.
 
         Args:
-            kernel (int | tuple[int, ...] | Data): the kernel to check.
+            kernel (int | tuple[int, ...] | np.ndarray): the kernel to check.
 
         Raises:
             TypeError: if the kernel is not an int, a tuple of ints or an ndarray.
@@ -89,7 +89,7 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
                 kernel dimensions do not match the data dimensions.
 
         Returns:
-            Data: the kernel as an ndarray.
+            np.ndarray: the kernel as an ndarray.
         """
 
         if isinstance(kernel, int):
@@ -119,7 +119,7 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
 
     def _get_not_NaNs_count(
             self,
-        ) -> tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], Data] | None:
+        ) -> tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], np.ndarray] | None:
         """
         To get the mask of non nan values and the weighted sum of non nan values for each sliding
         window.
@@ -127,9 +127,9 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
         corrected with this weighted sum. If there is no NaN in the data, returns None.
 
         Returns:
-            tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], Data] | None: the mask of valid
-                data and the sliding window weighted sum of non-NaN values. If there is no NaN
-                in the data, returns None.
+            tuple[np.ndarray[tuple[int, ...], np.dtype[np.bool_]], np.ndarray] | None: the mask of
+                valid data and the sliding window weighted sum of non-NaN values. If there is no
+                NaN in the data, returns None.
         """
 
         # TYPE CHECKER complains
@@ -150,13 +150,13 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
             return valid_mask, weight_sum#type:ignore
         return None
 
-    def _sliding_mean(self) -> Data:
+    def _sliding_mean(self) -> np.ndarray:
         """
         Computes the sliding mean.
 
         Returns:
-            Data: the sliding mean values as an array of np.ndarray. The length of the list is 1
-                if the input data was a single array.
+            np.ndarray: the sliding mean values as an array of np.ndarray. The length of the list
+                is 1 if the input data was a single array.
         """
 
         # TYPE CHECKER complains
@@ -194,4 +194,4 @@ class SlidingMean[Data: npt.NDArray[np.floating[Any]]]:
                 sum_values / weighted_valid_sum,
                 0.0,
             ).astype(self._data.dtype)
-        return cast(Data, means)
+        return means

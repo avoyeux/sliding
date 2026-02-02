@@ -12,16 +12,12 @@ from numba import set_num_threads
 from sliding.convolution import Padding, BorderType
 from sliding.mode.numba_functions import sliding_weighted_median_nd
 
-# TYPE ANNOTATIONs
-import numpy.typing as npt
-from typing import Any
-
 # API public
 __all__ = ["SlidingMedian"]
 
 
 
-class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
+class SlidingMedian:
     """
     To compute the sliding median of a given ndarray data and a kernel.
     When numpy arrays, the inputs need to be of np.floating type.
@@ -32,8 +28,8 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
 
     def __init__(
             self,
-            data: Data,
-            kernel: int | tuple[int, ...] | Data,
+            data: np.ndarray[tuple[int, ...], np.dtype[np.floating]],
+            kernel: int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]],
             borders: BorderType = "reflect",
             threads: int | None = 1,
         ) -> None:
@@ -46,10 +42,11 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
         ! Do use the same dtype for both the kernel and the data to avoid unwanted behaviors.
 
         Args:
-            data (Data): the input data to compute the sliding median from.
-            kernel (int | tuple[int, ...] | Data): the kernel to use for the sliding median
-                computation. When given as an ndarray, it can to contain weights. All kernel
-                dimensions must be positive odd integers.
+            data (np.ndarray[tuple[int, ...], np.dtype[np.floating]]): the input data to compute
+                the sliding median from.
+            kernel (int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.dtype[np.floating]]):
+                the kernel to use for the sliding median computation. When given as an ndarray, it
+                can to contain weights. All kernel dimensions must be positive odd integers.
             borders (BorderType, optional): the type of borders to use. These are the type of
                 borders used by OpenCV (not all OpenCV borders are implemented as some don't
                 have the equivalent in np.pad or scipy.ndimage). If None, uses adaptative borders,
@@ -68,7 +65,7 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
         self._sliding_median = self._get_sliding_median()
 
     @property
-    def median(self) -> Data:
+    def median(self) -> np.ndarray[tuple[int, ...], np.dtype[np.floating]]:
         """
         To access the sliding median result.
 
@@ -77,12 +74,12 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
         """
         return self._sliding_median
 
-    def _check_kernel(self, kernel: int | tuple[int, ...] | Data) -> Data:
+    def _check_kernel(self, kernel: int | tuple[int, ...] | np.ndarray) -> np.ndarray:
         """
         To check the input kernel shape, type and convert it to an ndarray if needed.
 
         Args:
-            kernel (int | tuple[int, ...] | Data): the kernel to check.
+            kernel (int | tuple[int, ...] | np.ndarray): the kernel to check.
 
         Raises:
             TypeError: if the kernel is not an int, a tuple of ints or an ndarray.
@@ -90,7 +87,7 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
                 kernel dimensions do not match the data dimensions.
 
         Returns:
-            Data: the kernel as an ndarray.
+            np.ndarrays: the kernel as an ndarray.
         """
 
         if isinstance(kernel, int):
@@ -118,7 +115,7 @@ class SlidingMedian[Data: npt.NDArray[np.floating[Any]]]:
         else:
             raise TypeError("The kernel must be an integer, a tuple of integers or an ndarray.")
 
-    def _get_sliding_median(self) -> Data:
+    def _get_sliding_median(self) -> np.ndarray:
         """
         Adds the corresponding padding and computes the sliding median.
 

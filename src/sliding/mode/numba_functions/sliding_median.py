@@ -15,7 +15,7 @@ __all__ = ['sliding_weighted_median_nd']
 
 
 
-def sliding_weighted_median_nd[Data: np.ndarray](data: Data, kernel: np.ndarray) -> Data:
+def sliding_weighted_median_nd(data: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
     To compute the sliding median for a weighted kernel and n-dimensional data.
 

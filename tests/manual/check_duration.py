@@ -21,11 +21,10 @@ from tests.utils import TestUtils, sigma_clip
 from sliding import SlidingStandardDeviation, SlidingSigmaClipping, SlidingMedian, SlidingMean
 
 # TYPE ANNOTATIONs
-from typing import Callable, cast
-from multiprocessing.sharedctypes import Synchronized
+from typing import Callable, cast, TypeAlias, Any
 from multiprocessing.synchronize import Lock as LockType
-type CounterType = Synchronized[int]
-type SharedMemoryType = shared_memory.SharedMemory
+CounterType: TypeAlias = Any
+SharedMemoryType: TypeAlias = shared_memory.SharedMemory
 
 
 
@@ -385,7 +384,7 @@ class CheckTimes:
 
 
 if __name__ == '__main__':
-    checker = CheckTimes(processes=94, jobs=1000)
+    checker = CheckTimes(processes=32, jobs=500)
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")

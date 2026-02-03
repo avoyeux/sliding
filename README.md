@@ -46,7 +46,7 @@ The *'sliding'* package has 5 different classes:
 ```python
 # IMPORTs
 import numpy as np
-from sliding import SlidingMean
+from sliding import SlidingSigmaClipping
 
 # CREATE fake data
 fake_data = np.random.rand(36, 1024, 128).astype(np.float64)
@@ -54,16 +54,25 @@ fake_data[10:15, 100:200, 50:75] = 1.3
 fake_data[7:, 40:60, 70:] = 1.7
 
 # KERNEL
-kernel = np.ones((5,) * fake_data.ndim, dtype=fake_data.dtype)
-kernel[2, 2, 2] = 0.
+kernel = np.ones((5, 3, 7), dtype=fake_data.dtype)
+kernel[2, 1, 3] = 0.
 
-# MEAN sliding
-mean = SlidingMean(
+# NaN ~5%
+is_nan = np.random.rand(*data.shape) < 0.05
+data[is_nan] = np.nan
+
+# CLIPPING no lower value
+clipped = SlidingSigmaClipping(
     data=fake_data,
     kernel=kernel,
+    center_choice='median',
+    sigma=3.,
+    sigma_lower=None,
+    max_iters=3,
     borders='reflect',
     threads=1,
-).mean
+    masked_array=False,
+).results
 ```
 
 ## IMPORTANT

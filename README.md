@@ -92,7 +92,7 @@ For further information, look at the code. The code is type annotated and all fu
 
 ## Speed up
 From personal tests, given the following configuration:
-- 2500 runs spread on 94 processes.
+- 1000 runs spread on 94 processes.
 - random input data of shape (36, 1024, 128) and dtype float64.
 - kernel 3 * 3 * 3 for all.
 - 5% of NaN values added to the initial random data.
@@ -100,10 +100,10 @@ From personal tests, given the following configuration:
 
 The running times compared to using scipy.ndimage.generic_filter are:
 
-- sliding mean: 94.17 minutes to 0.71 minutes (~ x132).
-- sliding median: 148.43 minutes to 4.82 minutes (~ x31).
-- sliding standard deviation: from 212.14 minutes to 3.07 minutes (~ x69).
-- sliding sigma clipping using the mean: from xxx minutes to 9.64 minutes.
+- sliding mean: 37.77 minutes to 0.30 minutes (~ x126).
+- sliding median: 59.57 minutes to 2.02 minutes (~ x29).
+- sliding standard deviation: from 86.37 minutes to 1.26 minutes (~ x69).
+- sliding sigma clipping using the mean: from xxx minutes to 3.88 minutes (~ xxx).
 - sliding sigma clipping using the median: from xxx minutes to xxx minutes.
 
 Not sure how the ratios change for different dimensions and type of data. I seem to remember that the ratio

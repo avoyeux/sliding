@@ -163,15 +163,14 @@ class CheckTimes:
         lock = mp.Lock()
         counter: CounterType = mp.Value('i', self._jobs)
         processes: list[mp.Process] = cast(list[mp.Process], [None] * self._processes)
-
-        start_time = time.time()
         for i in range(self._processes):
             p = mp.Process(
                 target=target,
                 args=(counter, lock, info),
             )
-            p.start()
             processes[i] = p
+        start_time = time.time()
+        for p in processes: p.start()
         for p in processes: p.join()
         duration = (time.time() - start_time) / 60
 
@@ -386,7 +385,7 @@ class CheckTimes:
 
 
 if __name__ == '__main__':
-    checker = CheckTimes(processes=94, jobs=2500)
+    checker = CheckTimes(processes=94, jobs=1000)
 
     start_time = time.time()
     print("\033[1;32mStarting duration checks...\033[0m")

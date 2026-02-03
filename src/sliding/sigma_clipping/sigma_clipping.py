@@ -23,6 +23,10 @@ KernelType: TypeAlias = int | tuple[int, ...] | np.ndarray[tuple[int, ...], np.d
 # API public
 __all__ = ["SlidingSigmaClipping"]
 
+# SENTINEL for default sigma lower/upper
+class _UseSigma: pass
+_USE_SIGMA = _UseSigma()
+
 # todo test the code on 1D data.
 
 
@@ -44,8 +48,8 @@ class SlidingSigmaClipping:
             kernel: KernelType = 3,
             center_choice: Literal['median', 'mean'] = 'median',
             sigma: float = 3.,
-            sigma_lower: float | None = None,
-            sigma_upper: float | None = None,
+            sigma_lower: float | None | _UseSigma = _USE_SIGMA,
+            sigma_upper: float | None | _UseSigma = _USE_SIGMA,
             max_iters: int | None = 5,
             borders: BorderType = 'reflect',
             threads: int | None = 1,
@@ -70,10 +74,12 @@ class SlidingSigmaClipping:
                 the mode for each pixel. Defaults to 'median'.
             sigma (float): the number of standard deviations to use for both the lower and upper
                 clipping limit. Overridden by 'sigma_lower' and/or 'sigma_upper'. 
-            sigma_lower (float | None, optional): the number of standard deviations to use for
-                the lower clipping limit. It will be set to 'sigma' if None. Defaults to None.
-            sigma_upper (float | None, optional): the number of standard deviations to use for
-                the upper clipping limit. It will be set to 'sigma' if None. Defaults to None.
+            sigma_lower (float | None | _UseSigma, optional): the number of standard deviations to
+                use for the lower clipping limit. It will be set to 'sigma' if _USE_SIGMA. When set
+                to None, no lower clipping is done. Defaults to _USE_SIGMA.
+            sigma_upper (float | None | _UseSigma, optional): the number of standard deviations to
+                use for the upper clipping limit. It will be set to 'sigma' if _USE_SIGMA. When set
+                to None, no upper clipping is done. Defaults to _USE_SIGMA.
             max_iters (int | None, optional): the maximum number of iterations to perform.
                 If None, iterate until convergence. Defaults to 5.
             borders (BorderType, optional): the type of borders to use. These are the type of
@@ -85,6 +91,9 @@ class SlidingSigmaClipping:
                 threads. Not used for the standard deviation. Defaults to 1.
             masked_array (bool, optional): whether to return a MaskedArray (True) or a normal
                 ndarray (False). Defaults to True.
+
+        Raises:
+            ValueError: if both 'sigma_lower' and 'sigma_upper' are None.
         """
 
         self._data = data
@@ -94,9 +103,13 @@ class SlidingSigmaClipping:
         self._threads = threads
         self._masked_array = masked_array
         self._center_choice = center_choice
-        self._sigma_lower = sigma_lower if sigma_lower is not None else sigma
-        self._sigma_upper = sigma_upper if sigma_upper is not None else sigma
+        self._sigma_lower = sigma if sigma_lower is _USE_SIGMA else sigma_lower
+        self._sigma_upper = sigma if sigma_upper is _USE_SIGMA else sigma_upper
         self._max_iters = cast(int, max_iters if max_iters is not None else np.inf)
+
+        # CHECK
+        if (self._sigma_upper is None) and (self._sigma_lower is None):
+            raise ValueError("At least one 'sigma_upper' or 'sigma_lower' must be not None.")
 
         # RUN
         if self._threads is not None: set_num_threads(self._threads)
@@ -133,13 +146,20 @@ class SlidingSigmaClipping:
         # TYPE CHECKER complains
         mode = np.empty(0, dtype=self._data.dtype)
         self._borders = cast(BorderType, self._borders)
+        self._sigma_lower = cast(float | None, self._sigma_lower)
+        self._sigma_upper = cast(float | None, self._sigma_upper)
 
         # COUNTs
         changed: bool = True
         iterations = 0
 
+        # BUFFER mask
+        new_mask = np.zeros(self._data.shape, dtype=np.bool_)
+
         # LOOP
         while (changed is True) and (iterations < self._max_iters):
+            # BUFFER reset
+            new_mask.fill(False)
 
             # CENTERs and STDDEVs
             instance_std = SlidingStandardDeviation(
@@ -163,9 +183,12 @@ class SlidingSigmaClipping:
                 raise ValueError(f"Unknown center choice: {self._center_choice}")
 
             diffs = output - mode
-            lower = diffs < - self._sigma_lower * std_devs
-            upper = diffs > self._sigma_upper * std_devs
-            new_mask = lower | upper
+
+            # MASK update
+            if self._sigma_lower is not None:
+                np.logical_or(new_mask, diffs < - self._sigma_lower * std_devs, out=new_mask)
+            if self._sigma_upper is not None:
+                np.logical_or(new_mask, diffs > self._sigma_upper * std_devs, out=new_mask)
 
             # UPDATE OUTPUT
             output[new_mask] = np.nan

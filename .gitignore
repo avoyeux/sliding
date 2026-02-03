@@ -4,8 +4,8 @@
 # DIRs whitelisted
 !libs/
 !libs/**
-!sliding/
-!sliding/**/
+!src/
+!src/**/
 !tests/
 !tests/**/
 
@@ -24,7 +24,5 @@
 
 # FILEs whitelisted
 !README.md
-!requirements.txt
 !.gitignore
-!.gitmodules
 !LICENSE

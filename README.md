@@ -112,9 +112,8 @@ The running times compared to using scipy.ndimage.generic_filter are:
 - sliding mean: 37.77 minutes to 0.30 minutes (~ x126).
 - sliding median: 59.57 minutes to 2.02 minutes (~ x29).
 - sliding standard deviation: from 86.37 minutes to 1.26 minutes (~ x69).
-- sliding sigma clipping using the mean: from xxx minutes to 3.88 minutes (~ xxx).
-- sliding sigma clipping using the median: from xxx minutes to xxx minutes.
+- sliding sigma clipping using the mean: from 378.96 minutes to 3.88 minutes (~ x98).
+- sliding sigma clipping using the median: from 449.18 minutes to 8.40 minutes (~ x53).
 
-Not sure how the ratios change for different dimensions and type of data. I seem to remember that the ratio
-is smaller when the kernel is bigger (most likely because of the memory usage). Cannot promise it
-though.
+Not sure exactly how the ratios change for different dimensions and type of data. I seem to remember
+that the ratio is smaller when the kernel is bigger (most likely because of the memory usage).
